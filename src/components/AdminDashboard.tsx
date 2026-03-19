@@ -186,6 +186,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </>
         )}
 
+        {/* Performance Tab */}
+        {tab === 'performance' && (
+          <PerformanceCharts deliveries={deliveries} employees={users} />
+        )}
+
         {/* Employees Tab */}
         {tab === 'employees' && (
           <>
