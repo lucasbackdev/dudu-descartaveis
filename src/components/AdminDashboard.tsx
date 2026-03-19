@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { mockDeliveries, mockUsers, Delivery, User } from '@/lib/mock-data';
+import PerformanceCharts from '@/components/PerformanceCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp
 } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance';
 
 const statusConfig = {
   pending: { label: 'Pendente', icon: Clock, color: 'bg-muted text-muted-foreground' },
@@ -40,6 +41,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const tabs: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
+    { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
   ];
 
@@ -182,6 +184,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               })}
             </div>
           </>
+        )}
+
+        {/* Performance Tab */}
+        {tab === 'performance' && (
+          <PerformanceCharts deliveries={deliveries} employees={users} />
         )}
 
         {/* Employees Tab */}
