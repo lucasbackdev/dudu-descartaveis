@@ -11,7 +11,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance';
 
 const statusConfig = {
   pending: { label: 'Pendente', icon: Clock, color: 'bg-muted text-muted-foreground' },
