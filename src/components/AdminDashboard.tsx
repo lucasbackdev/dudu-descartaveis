@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { mockDeliveries, mockUsers, Delivery, User } from '@/lib/mock-data';
+import PerformanceCharts from '@/components/PerformanceCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp
 } from 'lucide-react';
 
 interface AdminDashboardProps {
