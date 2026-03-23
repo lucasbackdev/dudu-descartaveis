@@ -70,8 +70,8 @@ function generateHistoricalDeliveries(): Delivery[] {
   let idCounter = 1;
   const now = new Date(2026, 2, 19); // 2026-03-19
 
-  // Generate deliveries over the past 2 years
-  for (let daysAgo = 0; daysAgo < 730; daysAgo++) {
+  // Generate deliveries over the past 30 days
+  for (let daysAgo = 0; daysAgo < 30; daysAgo++) {
     const date = new Date(now);
     date.setDate(date.getDate() - daysAgo);
 
