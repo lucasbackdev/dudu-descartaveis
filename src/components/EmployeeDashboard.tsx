@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { mockDeliveries, Delivery } from '@/lib/mock-data';
+import { supabase } from '@/integrations/supabase/client';
+import { Profile, Delivery } from '@/lib/types';
 import { Package, LogOut, MapPin, Clock, CheckCircle2, Truck, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface EmployeeDashboardProps {
+  profile: Profile;
   onLogout: () => void;
 }
 
@@ -13,27 +15,34 @@ const statusConfig = {
   delivered: { label: 'Entregue', icon: CheckCircle2, color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]' },
 };
 
-const EmployeeDashboard = ({ onLogout }: EmployeeDashboardProps) => {
-  const [deliveries, setDeliveries] = useState<Delivery[]>(
-    mockDeliveries.filter(d => d.employeeId === '2')
-  );
+const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const handleStatusChange = (id: string, newStatus: Delivery['status']) => {
-    setDeliveries(prev =>
-      prev.map(d =>
-        d.id === id
-          ? { ...d, status: newStatus, completedAt: newStatus === 'delivered' ? new Date().toISOString() : d.completedAt }
-          : d
-      )
-    );
+  const fetchDeliveries = async () => {
+    const { data } = await supabase
+      .from('deliveries')
+      .select('*, delivery_items(*)')
+      .eq('employee_id', profile.id)
+      .order('created_at', { ascending: false });
+    setDeliveries((data as Delivery[]) || []);
+  };
+
+  useEffect(() => { fetchDeliveries(); }, [profile.id]);
+
+  const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
+    const updates: any = { status: newStatus };
+    if (newStatus === 'delivered') updates.completed_at = new Date().toISOString();
+
+    await supabase.from('deliveries').update(updates).eq('id', id);
+    fetchDeliveries();
   };
 
   const pending = deliveries.filter(d => d.status !== 'delivered').length;
+  const firstName = profile.name.split(' ')[0];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <div className="flex items-center gap-2">
@@ -47,15 +56,13 @@ const EmployeeDashboard = ({ onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Welcome */}
         <div>
-          <h1 className="text-xl font-bold">Olá, Carlos 👋</h1>
+          <h1 className="text-xl font-bold">Olá, {firstName} 👋</h1>
           <p className="text-sm text-muted-foreground">
             {pending > 0 ? `Você tem ${pending} entrega(s) pendente(s)` : 'Todas entregas concluídas!'}
           </p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Pendentes', value: deliveries.filter(d => d.status === 'pending').length },
@@ -69,12 +76,14 @@ const EmployeeDashboard = ({ onLogout }: EmployeeDashboardProps) => {
           ))}
         </div>
 
-        {/* Deliveries */}
         <div className="space-y-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Minhas Entregas</h2>
+          {deliveries.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega atribuída a você.</p>
+          )}
           {deliveries.map(delivery => {
             const expanded = expandedId === delivery.id;
-            const config = statusConfig[delivery.status];
+            const config = statusConfig[delivery.status as keyof typeof statusConfig];
             const StatusIcon = config.icon;
 
             return (
@@ -101,7 +110,7 @@ const EmployeeDashboard = ({ onLogout }: EmployeeDashboardProps) => {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
                       <div className="space-y-2">
-                        {delivery.items.map(item => (
+                        {delivery.delivery_items?.map(item => (
                           <div key={item.id} className="flex justify-between text-sm">
                             <span>{item.name}</span>
                             <span className="font-semibold text-muted-foreground">x{item.quantity}</span>
@@ -132,9 +141,9 @@ const EmployeeDashboard = ({ onLogout }: EmployeeDashboardProps) => {
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
                       </Button>
                     )}
-                    {delivery.status === 'delivered' && (
+                    {delivery.status === 'delivered' && delivery.completed_at && (
                       <div className="text-center text-xs text-muted-foreground">
-                        ✅ Entregue em {new Date(delivery.completedAt!).toLocaleString('pt-BR')}
+                        ✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}
                       </div>
                     )}
                   </div>
