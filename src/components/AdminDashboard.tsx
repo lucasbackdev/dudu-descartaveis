@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { mockDeliveries, mockUsers, Delivery, User } from '@/lib/mock-data';
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { Profile, Delivery } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -16,24 +19,75 @@ type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance';
 const statusConfig = {
   pending: { label: 'Pendente', icon: Clock, color: 'bg-muted text-muted-foreground' },
   in_transit: { label: 'Em trânsito', icon: Truck, color: 'bg-foreground/10 text-foreground' },
-  delivered: { label: 'Entregue', icon: CheckCircle2, color: 'bg-[hsl(142,71%,45%)]/10 text-[hsl(142,71%,45%)]' },
+  delivered: { label: 'Entregue', icon: CheckCircle2, color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]' },
 };
 
 const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [tab, setTab] = useState<Tab>('dashboard');
-  const [deliveries] = useState<Delivery[]>(mockDeliveries);
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [employees, setEmployees] = useState<Profile[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showCreateEmployee, setShowCreateEmployee] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
+  const [creating, setCreating] = useState(false);
 
-  const handleApprove = (userId: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, approved: true } : u));
+  const fetchData = async () => {
+    const [{ data: profiles }, { data: dels }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('role', 'employee'),
+      supabase.from('deliveries').select('*, delivery_items(*)').order('created_at', { ascending: false }),
+    ]);
+    setEmployees((profiles as Profile[]) || []);
+    setDeliveries((dels as Delivery[]) || []);
   };
 
-  const handleReject = (userId: string) => {
-    setUsers(prev => prev.filter(u => u.id !== userId));
+  useEffect(() => { fetchData(); }, []);
+
+  const handleApprove = async (userId: string) => {
+    await supabase.from('profiles').update({ approved: true }).eq('id', userId);
+    fetchData();
+    toast.success('Funcionário aprovado!');
   };
 
-  const employees = users.filter(u => u.role === 'employee');
+  const handleReject = async (userId: string) => {
+    await supabase.from('profiles').update({ approved: false }).eq('id', userId);
+    fetchData();
+    toast.success('Funcionário rejeitado.');
+  };
+
+  const handleCreateEmployee = async () => {
+    if (!newEmployee.name || !newEmployee.email || !newEmployee.password) {
+      toast.error('Preencha todos os campos');
+      return;
+    }
+    if (newEmployee.password.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    setCreating(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const response = await supabase.functions.invoke('create-employee', {
+      body: { 
+        name: newEmployee.name, 
+        email: newEmployee.email, 
+        password: newEmployee.password 
+      },
+    });
+
+    setCreating(false);
+
+    if (response.error || response.data?.error) {
+      toast.error(response.data?.error || response.error?.message || 'Erro ao criar funcionário');
+      return;
+    }
+
+    toast.success(`Funcionário ${newEmployee.name} criado com sucesso!`);
+    setNewEmployee({ name: '', email: '', password: '' });
+    setShowCreateEmployee(false);
+    fetchData();
+  };
+
   const pendingApproval = employees.filter(u => !u.approved);
   const totalDelivered = deliveries.filter(d => d.status === 'delivered').length;
   const totalPending = deliveries.filter(d => d.status !== 'delivered').length;
@@ -47,7 +101,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-2">
@@ -62,7 +115,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Dashboard Tab */}
         {tab === 'dashboard' && (
           <>
             <div>
@@ -70,10 +122,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               <p className="text-sm text-muted-foreground">Visão geral das operações</p>
             </div>
 
-            {/* Alert for pending approvals */}
             {pendingApproval.length > 0 && (
-              <div className="bg-[hsl(38,92%,50%)]/10 border border-[hsl(38,92%,50%)]/30 rounded-2xl p-4 flex items-center gap-3">
-                <UserCheck className="w-5 h-5 text-[hsl(38,92%,50%)]" />
+              <div className="bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/30 rounded-2xl p-4 flex items-center gap-3">
+                <UserCheck className="w-5 h-5 text-[hsl(var(--warning))]" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold">{pendingApproval.length} funcionário(s) aguardando aprovação</p>
                   <p className="text-xs text-muted-foreground">Vá até a aba Equipe para aprovar</p>
@@ -82,11 +133,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               </div>
             )}
 
-            {/* Stats */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Total de Entregas', value: deliveries.length, sub: 'hoje' },
-                { label: 'Entregues', value: totalDelivered, sub: `${Math.round((totalDelivered / deliveries.length) * 100)}% concluído` },
+                { label: 'Total de Entregas', value: deliveries.length, sub: 'registradas' },
+                { label: 'Entregues', value: totalDelivered, sub: deliveries.length > 0 ? `${Math.round((totalDelivered / deliveries.length) * 100)}% concluído` : '0%' },
                 { label: 'Pendentes', value: totalPending, sub: 'em andamento' },
                 { label: 'Funcionários', value: employees.filter(u => u.approved).length, sub: 'ativos' },
               ].map(s => (
@@ -98,12 +148,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               ))}
             </div>
 
-            {/* Recent activity */}
             <div>
               <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">Atividade Recente</h2>
               <div className="space-y-2">
+                {deliveries.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega registrada ainda.</p>
+                )}
                 {deliveries.slice(0, 3).map(d => {
-                  const config = statusConfig[d.status];
+                  const config = statusConfig[d.status as keyof typeof statusConfig];
                   const StatusIcon = config.icon;
                   return (
                     <div key={d.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl">
@@ -112,7 +164,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate">{d.client}</p>
-                        <p className="text-xs text-muted-foreground">{d.employeeName} • {config.label}</p>
+                        <p className="text-xs text-muted-foreground">{d.employee_name} • {config.label}</p>
                       </div>
                     </div>
                   );
@@ -122,7 +174,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </>
         )}
 
-        {/* Deliveries Tab */}
         {tab === 'deliveries' && (
           <>
             <div>
@@ -130,10 +181,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               <p className="text-sm text-muted-foreground">{deliveries.length} entregas registradas</p>
             </div>
 
+            {deliveries.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega registrada ainda.</p>
+            )}
+
             <div className="space-y-3">
               {deliveries.map(delivery => {
                 const expanded = expandedId === delivery.id;
-                const config = statusConfig[delivery.status];
+                const config = statusConfig[delivery.status as keyof typeof statusConfig];
                 const StatusIcon = config.icon;
 
                 return (
@@ -151,7 +206,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                           <MapPin className="w-3 h-3 shrink-0" />
                           <p className="text-xs truncate">{delivery.address}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">📦 {delivery.employeeName}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">📦 {delivery.employee_name}</p>
                       </div>
                       {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                     </button>
@@ -165,7 +220,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens</p>
-                          {delivery.items.map(item => (
+                          {delivery.delivery_items?.map(item => (
                             <div key={item.id} className="flex justify-between text-sm py-1">
                               <span>{item.name}</span>
                               <span className="font-semibold text-muted-foreground">x{item.quantity}</span>
@@ -186,24 +241,61 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </>
         )}
 
-        {/* Performance Tab */}
         {tab === 'performance' && (
-          <PerformanceCharts deliveries={deliveries} employees={users} />
+          <PerformanceCharts deliveries={deliveries} employees={employees} />
         )}
 
-        {/* Employees Tab */}
         {tab === 'employees' && (
           <>
-            <div>
-              <h1 className="text-xl font-bold">Gestão de Equipe</h1>
-              <p className="text-sm text-muted-foreground">{employees.length} funcionário(s)</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold">Gestão de Equipe</h1>
+                <p className="text-sm text-muted-foreground">{employees.length} funcionário(s)</p>
+              </div>
+              <Button onClick={() => setShowCreateEmployee(!showCreateEmployee)} className="rounded-full" size="sm">
+                <UserPlus className="w-4 h-4 mr-1" /> Novo
+              </Button>
             </div>
+
+            {showCreateEmployee && (
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Cadastrar Funcionário</h3>
+                <Input
+                  placeholder="Nome completo"
+                  value={newEmployee.name}
+                  onChange={(e) => setNewEmployee(prev => ({ ...prev, name: e.target.value }))}
+                  className="h-11 rounded-full px-5 bg-secondary border-0"
+                />
+                <Input
+                  placeholder="Email"
+                  type="email"
+                  value={newEmployee.email}
+                  onChange={(e) => setNewEmployee(prev => ({ ...prev, email: e.target.value }))}
+                  className="h-11 rounded-full px-5 bg-secondary border-0"
+                />
+                <Input
+                  placeholder="Senha (mín. 6 caracteres)"
+                  type="password"
+                  value={newEmployee.password}
+                  onChange={(e) => setNewEmployee(prev => ({ ...prev, password: e.target.value }))}
+                  className="h-11 rounded-full px-5 bg-secondary border-0"
+                />
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateEmployee} disabled={creating} className="flex-1 rounded-full h-11">
+                    {creating ? 'Criando...' : 'Criar Funcionário'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCreateEmployee(false)} className="rounded-full h-11">
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {pendingApproval.length > 0 && (
               <div className="space-y-3">
                 <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Aguardando Aprovação</h2>
                 {pendingApproval.map(user => (
-                  <div key={user.id} className="bg-card border-2 border-[hsl(38,92%,50%)]/30 rounded-2xl p-4">
+                  <div key={user.id} className="bg-card border-2 border-[hsl(var(--warning))]/30 rounded-2xl p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-sm">
                         {user.name.charAt(0)}
@@ -228,8 +320,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
             <div className="space-y-3">
               <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Funcionários Ativos</h2>
+              {employees.filter(u => u.approved).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum funcionário cadastrado ainda.</p>
+              )}
               {employees.filter(u => u.approved).map(user => {
-                const userDeliveries = deliveries.filter(d => d.employeeId === user.id);
+                const userDeliveries = deliveries.filter(d => d.employee_id === user.id);
                 const completed = userDeliveries.filter(d => d.status === 'delivered').length;
                 return (
                   <div key={user.id} className="bg-card border border-border rounded-2xl p-4">
@@ -254,7 +349,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         )}
       </main>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border">
         <div className="max-w-2xl mx-auto flex">
           {tabs.map(t => {
