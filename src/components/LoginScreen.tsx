@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Package } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { supabase } from '@/integrations/supabase/client';
 
 interface LoginScreenProps {
@@ -42,10 +42,7 @@ const LoginScreen = ({ onLogin }: LoginScreenProps) => {
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background">
       <div className="w-full max-w-sm space-y-8">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-            <Package className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Dudu Descartáveis</h1>
+          <img src={logo} alt="Dudu Descartáveis" className="w-48 h-auto" />
           <p className="text-sm text-muted-foreground">Sistema de Gestão de Entregas</p>
         </div>
 
