@@ -214,6 +214,44 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Offline / Syncing Banner */}
+        {(!isOnline || pendingCount > 0) && (
+          <div className={`flex items-center gap-3 rounded-2xl p-4 ${
+            !isOnline 
+              ? 'bg-destructive/10 text-destructive border border-destructive/20' 
+              : 'bg-primary/10 text-primary border border-primary/20'
+          }`}>
+            {!isOnline ? (
+              <WifiOff className="w-5 h-5 shrink-0" />
+            ) : syncing ? (
+              <Loader2 className="w-5 h-5 shrink-0 animate-spin" />
+            ) : (
+              <CloudUpload className="w-5 h-5 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              {!isOnline ? (
+                <>
+                  <p className="text-sm font-semibold">Sem conexão</p>
+                  <p className="text-xs opacity-80">
+                    {pendingCount > 0 
+                      ? `${pendingCount} operação(ões) pendente(s). Serão enviadas quando a conexão for restabelecida.`
+                      : 'Você pode continuar registrando entregas. Os dados serão enviados automaticamente.'}
+                  </p>
+                </>
+              ) : syncing ? (
+                <>
+                  <p className="text-sm font-semibold">Sincronizando...</p>
+                  <p className="text-xs opacity-80">Enviando dados pendentes ao servidor.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold">Dados pendentes</p>
+                  <p className="text-xs opacity-80">{pendingCount} operação(ões) aguardando sincronização.</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <input
             type="file"
