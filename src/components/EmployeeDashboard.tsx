@@ -30,12 +30,49 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [sending, setSending] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // New delivery form
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1' }]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione uma imagem válida');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('A imagem deve ter no máximo 2MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const filePath = `${profile.id}/avatar.${file.name.split('.').pop()}`;
+
+    // Remove old avatar if exists
+    await supabase.storage.from('avatars').remove([filePath]);
+
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+    if (uploadError) {
+      toast.error('Erro ao enviar foto');
+      setUploadingAvatar(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
+    setAvatarUrl(publicUrl + '?t=' + Date.now());
+    setUploadingAvatar(false);
+    toast.success('Foto de perfil atualizada!');
+  };
 
   const fetchDeliveries = async () => {
     const { data } = await supabase
