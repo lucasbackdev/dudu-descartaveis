@@ -27,6 +27,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
   const [creating, setCreating] = useState(false);
@@ -198,53 +199,86 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega registrada ainda.</p>
             )}
 
-            <div className="space-y-3">
-              {deliveries.map(delivery => {
-                const expanded = expandedId === delivery.id;
-                const config = statusConfig[delivery.status as keyof typeof statusConfig];
-                const StatusIcon = config.icon;
+            <div className="space-y-4">
+              {Object.entries(
+                deliveries.reduce<Record<string, Delivery[]>>((acc, d) => {
+                  const name = d.employee_name || 'Sem nome';
+                  if (!acc[name]) acc[name] = [];
+                  acc[name].push(d);
+                  return acc;
+                }, {})
+              ).map(([employeeName, empDeliveries]) => {
+                const isGroupExpanded = expandedGroups.includes(employeeName);
+                const completed = empDeliveries.filter(d => d.status === 'delivered').length;
 
                 return (
-                  <div key={delivery.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div key={employeeName} className="bg-card border border-border rounded-2xl overflow-hidden">
                     <button
-                      onClick={() => setExpandedId(expanded ? null : delivery.id)}
+                      onClick={() => setExpandedGroups(prev =>
+                        prev.includes(employeeName) ? prev.filter(n => n !== employeeName) : [...prev, employeeName]
+                      )}
                       className="w-full p-4 flex items-center gap-3 text-left"
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${config.color}`}>
-                        <StatusIcon className="w-5 h-5" />
+                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">
+                        {employeeName.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{delivery.client}</p>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          <p className="text-xs truncate">{delivery.address}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">📦 {delivery.employee_name}</p>
+                        <p className="font-semibold text-sm">{employeeName}</p>
+                        <p className="text-xs text-muted-foreground">{empDeliveries.length} entrega(s) • {completed} entregue(s)</p>
                       </div>
-                      {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                      {isGroupExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                     </button>
 
-                    {expanded && (
-                      <div className="px-4 pb-4 space-y-3 border-t border-border pt-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold rounded-full px-3 py-1 ${config.color}`}>
-                            {config.label}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens</p>
-                          {delivery.delivery_items?.map(item => (
-                            <div key={item.id} className="flex justify-between text-sm py-1">
-                              <span>{item.name}</span>
-                              <span className="font-semibold text-muted-foreground">x{item.quantity}</span>
+                    {isGroupExpanded && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {empDeliveries.map(delivery => {
+                          const expanded = expandedId === delivery.id;
+                          const config = statusConfig[delivery.status as keyof typeof statusConfig];
+                          const StatusIcon = config.icon;
+
+                          return (
+                            <div key={delivery.id} className="bg-secondary rounded-xl overflow-hidden">
+                              <button
+                                onClick={() => setExpandedId(expanded ? null : delivery.id)}
+                                className="w-full p-3 flex items-center gap-3 text-left"
+                              >
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${config.color}`}>
+                                  <StatusIcon className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-sm truncate">{delivery.client}</p>
+                                  <div className="flex items-center gap-1 text-muted-foreground">
+                                    <MapPin className="w-3 h-3 shrink-0" />
+                                    <p className="text-xs truncate">{delivery.address}</p>
+                                  </div>
+                                </div>
+                                {expanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                              </button>
+
+                              {expanded && (
+                                <div className="px-3 pb-3 space-y-2 border-t border-border/50 pt-3">
+                                  <span className={`text-xs font-semibold rounded-full px-3 py-1 ${config.color}`}>
+                                    {config.label}
+                                  </span>
+                                  <div>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Itens</p>
+                                    {delivery.delivery_items?.map(item => (
+                                      <div key={item.id} className="flex justify-between text-sm py-0.5">
+                                        <span>{item.name}</span>
+                                        <span className="font-semibold text-muted-foreground">x{item.quantity}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {delivery.notes && (
+                                    <div className="bg-background rounded-lg p-2">
+                                      <p className="text-xs text-muted-foreground">📝 {delivery.notes}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                        {delivery.notes && (
-                          <div className="bg-secondary rounded-xl p-3">
-                            <p className="text-xs text-muted-foreground">📝 {delivery.notes}</p>
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
