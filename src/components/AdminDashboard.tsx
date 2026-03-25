@@ -6,7 +6,7 @@ import { Profile, Delivery } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +32,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -94,6 +95,24 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     toast.success(`Funcionário ${newEmployee.name} criado com sucesso!`);
     setNewEmployee({ name: '', email: '', password: '' });
     setShowCreateEmployee(false);
+    fetchData();
+  };
+
+  const handleDeleteEmployee = async (employeeId: string, employeeName: string) => {
+    if (!confirm(`Tem certeza que deseja excluir a conta de ${employeeName}? Os dados de entrega serão mantidos.`)) return;
+    
+    setDeletingId(employeeId);
+    const response = await supabase.functions.invoke('delete-employee', {
+      body: { employee_id: employeeId },
+    });
+    setDeletingId(null);
+
+    if (response.error || response.data?.error) {
+      toast.error(response.data?.error || response.error?.message || 'Erro ao excluir funcionário');
+      return;
+    }
+
+    toast.success(`Conta de ${employeeName} excluída com sucesso!`);
     fetchData();
   };
 
@@ -398,9 +417,19 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                         <p className="font-semibold text-sm">{user.name}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold">{completed}/{userDeliveries.length}</p>
-                        <p className="text-[10px] text-muted-foreground">entregas</p>
+                      <div className="text-right flex items-center gap-2">
+                        <div>
+                          <p className="text-lg font-bold">{completed}/{userDeliveries.length}</p>
+                          <p className="text-[10px] text-muted-foreground">entregas</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteEmployee(user.id, user.name)}
+                          disabled={deletingId === user.id}
+                          className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                          title="Excluir conta"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>
