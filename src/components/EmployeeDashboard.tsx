@@ -5,9 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
-  ChevronRight, ChevronDown, Plus, Trash2, Send, Camera
+  ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
+  WifiOff, Loader2, CloudUpload
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { addPendingOperation } from '@/lib/offlineSync';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface EmployeeDashboardProps {
   profile: Profile;
