@@ -5,6 +5,7 @@ export interface Profile {
   role: 'admin' | 'employee';
   approved: boolean;
   created_at: string;
+  avatar_url?: string | null;
 }
 
 export interface Delivery {
