@@ -137,17 +137,35 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     }
 
     setSending(true);
+    const validItemsMapped = validItems.map(item => ({
+      name: item.name.trim(),
+      quantity: parseInt(item.quantity) || 1,
+    }));
+
+    const deliveryData = {
+      employee_id: profile.id,
+      employee_name: profile.name,
+      client: client.trim(),
+      address: address.trim(),
+      notes: notes.trim() || '',
+      status: 'pending',
+    };
+
+    if (!navigator.onLine) {
+      addPendingOperation({
+        type: 'create_delivery',
+        payload: { delivery: deliveryData, items: validItemsMapped },
+      });
+      refreshPendingCount();
+      setSending(false);
+      toast.info('Sem conexão. A entrega será enviada quando a internet voltar.');
+      resetForm();
+      return;
+    }
 
     const { data: delivery, error } = await supabase
       .from('deliveries')
-      .insert({
-        employee_id: profile.id,
-        employee_name: profile.name,
-        client: client.trim(),
-        address: address.trim(),
-        notes: notes.trim() || '',
-        status: 'pending',
-      })
+      .insert(deliveryData)
       .select()
       .single();
 
@@ -157,10 +175,9 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       return;
     }
 
-    const itemsToInsert = validItems.map(item => ({
+    const itemsToInsert = validItemsMapped.map(item => ({
+      ...item,
       delivery_id: delivery.id,
-      name: item.name.trim(),
-      quantity: parseInt(item.quantity) || 1,
     }));
 
     const { error: itemsError } = await supabase
