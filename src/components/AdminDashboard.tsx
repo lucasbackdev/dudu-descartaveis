@@ -116,9 +116,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             <span className="font-bold text-sm">Dudu Descartáveis</span>
             <span className="text-[10px] bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-semibold">ADMIN</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={onLogout} className="rounded-full">
-            <LogOut className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="rounded-full">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onLogout} className="rounded-full">
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
