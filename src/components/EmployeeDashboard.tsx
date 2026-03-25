@@ -92,6 +92,19 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') updates.completed_at = new Date().toISOString();
+
+    if (!navigator.onLine) {
+      addPendingOperation({
+        type: 'status_update',
+        payload: { id, status: newStatus, completed_at: updates.completed_at },
+      });
+      refreshPendingCount();
+      // Update locally for immediate feedback
+      setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+      toast.info('Sem conexão. A atualização será enviada quando a internet voltar.');
+      return;
+    }
+
     await supabase.from('deliveries').update(updates).eq('id', id);
     fetchDeliveries();
   };
