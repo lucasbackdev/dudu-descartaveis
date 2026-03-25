@@ -5,9 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
-  ChevronRight, ChevronDown, Plus, Trash2, Send, Camera
+  ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
+  WifiOff, Loader2, CloudUpload
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { addPendingOperation } from '@/lib/offlineSync';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -33,6 +36,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isOnline, pendingCount, syncing, refreshPendingCount } = useOnlineStatus();
 
   // New delivery form
   const [client, setClient] = useState('');
@@ -88,6 +92,19 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') updates.completed_at = new Date().toISOString();
+
+    if (!navigator.onLine) {
+      addPendingOperation({
+        type: 'status_update',
+        payload: { id, status: newStatus, completed_at: updates.completed_at },
+      });
+      refreshPendingCount();
+      // Update locally for immediate feedback
+      setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+      toast.info('Sem conexão. A atualização será enviada quando a internet voltar.');
+      return;
+    }
+
     await supabase.from('deliveries').update(updates).eq('id', id);
     fetchDeliveries();
   };
@@ -120,17 +137,35 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     }
 
     setSending(true);
+    const validItemsMapped = validItems.map(item => ({
+      name: item.name.trim(),
+      quantity: parseInt(item.quantity) || 1,
+    }));
+
+    const deliveryData = {
+      employee_id: profile.id,
+      employee_name: profile.name,
+      client: client.trim(),
+      address: address.trim(),
+      notes: notes.trim() || '',
+      status: 'pending',
+    };
+
+    if (!navigator.onLine) {
+      addPendingOperation({
+        type: 'create_delivery',
+        payload: { delivery: deliveryData, items: validItemsMapped },
+      });
+      refreshPendingCount();
+      setSending(false);
+      toast.info('Sem conexão. A entrega será enviada quando a internet voltar.');
+      resetForm();
+      return;
+    }
 
     const { data: delivery, error } = await supabase
       .from('deliveries')
-      .insert({
-        employee_id: profile.id,
-        employee_name: profile.name,
-        client: client.trim(),
-        address: address.trim(),
-        notes: notes.trim() || '',
-        status: 'pending',
-      })
+      .insert(deliveryData)
       .select()
       .single();
 
@@ -140,10 +175,9 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       return;
     }
 
-    const itemsToInsert = validItems.map(item => ({
+    const itemsToInsert = validItemsMapped.map(item => ({
+      ...item,
       delivery_id: delivery.id,
-      name: item.name.trim(),
-      quantity: parseInt(item.quantity) || 1,
     }));
 
     const { error: itemsError } = await supabase
@@ -180,6 +214,44 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Offline / Syncing Banner */}
+        {(!isOnline || pendingCount > 0) && (
+          <div className={`flex items-center gap-3 rounded-2xl p-4 ${
+            !isOnline 
+              ? 'bg-destructive/10 text-destructive border border-destructive/20' 
+              : 'bg-primary/10 text-primary border border-primary/20'
+          }`}>
+            {!isOnline ? (
+              <WifiOff className="w-5 h-5 shrink-0" />
+            ) : syncing ? (
+              <Loader2 className="w-5 h-5 shrink-0 animate-spin" />
+            ) : (
+              <CloudUpload className="w-5 h-5 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              {!isOnline ? (
+                <>
+                  <p className="text-sm font-semibold">Sem conexão</p>
+                  <p className="text-xs opacity-80">
+                    {pendingCount > 0 
+                      ? `${pendingCount} operação(ões) pendente(s). Serão enviadas quando a conexão for restabelecida.`
+                      : 'Você pode continuar registrando entregas. Os dados serão enviados automaticamente.'}
+                  </p>
+                </>
+              ) : syncing ? (
+                <>
+                  <p className="text-sm font-semibold">Sincronizando...</p>
+                  <p className="text-xs opacity-80">Enviando dados pendentes ao servidor.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold">Dados pendentes</p>
+                  <p className="text-xs opacity-80">{pendingCount} operação(ões) aguardando sincronização.</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-4">
           <input
             type="file"
