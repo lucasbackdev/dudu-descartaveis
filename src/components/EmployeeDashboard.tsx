@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery } from '@/lib/types';
-import { Package, LogOut, MapPin, Clock, CheckCircle2, Truck, ChevronRight, ChevronDown } from 'lucide-react';
+import {
+  Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
+  ChevronRight, ChevronDown, Plus, Trash2, Send
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -15,9 +20,22 @@ const statusConfig = {
   delivered: { label: 'Entregue', icon: CheckCircle2, color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]' },
 };
 
+interface NewItem {
+  name: string;
+  quantity: string;
+}
+
 const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  // New delivery form
+  const [client, setClient] = useState('');
+  const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
+  const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1' }]);
 
   const fetchDeliveries = async () => {
     const { data } = await supabase
@@ -33,8 +51,77 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') updates.completed_at = new Date().toISOString();
-
     await supabase.from('deliveries').update(updates).eq('id', id);
+    fetchDeliveries();
+  };
+
+  const addItem = () => setItems([...items, { name: '', quantity: '1' }]);
+  const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
+  const updateItem = (idx: number, field: keyof NewItem, value: string) => {
+    const updated = [...items];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setItems(updated);
+  };
+
+  const resetForm = () => {
+    setClient('');
+    setAddress('');
+    setNotes('');
+    setItems([{ name: '', quantity: '1' }]);
+    setShowCreate(false);
+  };
+
+  const handleSubmitDelivery = async () => {
+    if (!client.trim() || !address.trim()) {
+      toast.error('Preencha o cliente e o endereço');
+      return;
+    }
+    const validItems = items.filter(i => i.name.trim());
+    if (validItems.length === 0) {
+      toast.error('Adicione pelo menos um item');
+      return;
+    }
+
+    setSending(true);
+
+    const { data: delivery, error } = await supabase
+      .from('deliveries')
+      .insert({
+        employee_id: profile.id,
+        employee_name: profile.name,
+        client: client.trim(),
+        address: address.trim(),
+        notes: notes.trim() || '',
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (error || !delivery) {
+      toast.error('Erro ao criar entrega');
+      setSending(false);
+      return;
+    }
+
+    const itemsToInsert = validItems.map(item => ({
+      delivery_id: delivery.id,
+      name: item.name.trim(),
+      quantity: parseInt(item.quantity) || 1,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('delivery_items')
+      .insert(itemsToInsert);
+
+    setSending(false);
+
+    if (itemsError) {
+      toast.error('Entrega criada, mas erro ao adicionar itens');
+    } else {
+      toast.success('Entrega registrada com sucesso!');
+    }
+
+    resetForm();
     fetchDeliveries();
   };
 
@@ -42,7 +129,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const firstName = profile.name.split(' ')[0];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <div className="flex items-center gap-2">
@@ -56,12 +143,82 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-xl font-bold">Olá, {firstName} 👋</h1>
-          <p className="text-sm text-muted-foreground">
-            {pending > 0 ? `Você tem ${pending} entrega(s) pendente(s)` : 'Todas entregas concluídas!'}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Olá, {firstName} 👋</h1>
+            <p className="text-sm text-muted-foreground">
+              {pending > 0 ? `Você tem ${pending} entrega(s) pendente(s)` : 'Todas entregas concluídas!'}
+            </p>
+          </div>
+          <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm">
+            <Plus className="w-4 h-4 mr-1" /> Nova
+          </Button>
         </div>
+
+        {/* Create delivery form */}
+        {showCreate && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <h3 className="font-semibold text-sm">Registrar Entrega</h3>
+            <Input
+              placeholder="Nome do cliente"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+              className="h-11 rounded-full px-5 bg-secondary border-0"
+            />
+            <Input
+              placeholder="Endereço"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="h-11 rounded-full px-5 bg-secondary border-0"
+            />
+            <Input
+              placeholder="Observações (opcional)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="h-11 rounded-full px-5 bg-secondary border-0"
+            />
+
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
+              {items.map((item, idx) => (
+                <div key={idx} className="flex gap-2 mb-2">
+                  <Input
+                    placeholder="Nome do item"
+                    value={item.name}
+                    onChange={(e) => updateItem(idx, 'name', e.target.value)}
+                    className="h-10 rounded-full px-4 bg-secondary border-0 flex-1"
+                  />
+                  <Input
+                    placeholder="Qtd"
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                    className="h-10 rounded-full px-4 bg-secondary border-0 w-20"
+                  />
+                  {items.length > 1 && (
+                    <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={addItem} className="rounded-full text-xs">
+                <Plus className="w-3 h-3 mr-1" /> Adicionar item
+              </Button>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button onClick={handleSubmitDelivery} disabled={sending} className="flex-1 rounded-full h-11">
+                <Send className="w-4 h-4 mr-2" />
+                {sending ? 'Enviando...' : 'Enviar Entrega'}
+              </Button>
+              <Button variant="outline" onClick={resetForm} className="rounded-full h-11">
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3">
           {[
@@ -79,7 +236,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
         <div className="space-y-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Minhas Entregas</h2>
           {deliveries.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega atribuída a você.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega registrada. Clique em "Nova" para começar.</p>
           )}
           {deliveries.map(delivery => {
             const expanded = expandedId === delivery.id;
