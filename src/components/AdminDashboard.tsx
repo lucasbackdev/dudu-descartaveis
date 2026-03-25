@@ -219,9 +219,16 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                       )}
                       className="w-full p-4 flex items-center gap-3 text-left"
                     >
-                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">
-                        {employeeName.charAt(0)}
-                      </div>
+                      {(() => {
+                        const emp = employees.find(e => e.name === employeeName);
+                        return emp?.avatar_url ? (
+                          <img src={emp.avatar_url} alt={employeeName} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">
+                            {employeeName.charAt(0)}
+                          </div>
+                        );
+                      })()}
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm">{employeeName}</p>
                         <p className="text-xs text-muted-foreground">{empDeliveries.length} entrega(s) • {completed} entregue(s)</p>
@@ -344,9 +351,13 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 {pendingApproval.map(user => (
                   <div key={user.id} className="bg-card border-2 border-[hsl(var(--warning))]/30 rounded-2xl p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-sm">
-                        {user.name.charAt(0)}
-                      </div>
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold text-sm">
+                          {user.name.charAt(0)}
+                        </div>
+                      )}
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{user.name}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
@@ -376,9 +387,13 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 return (
                   <div key={user.id} className="bg-card border border-border rounded-2xl p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                        {user.name.charAt(0)}
-                      </div>
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                          {user.name.charAt(0)}
+                        </div>
+                      )}
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{user.name}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
