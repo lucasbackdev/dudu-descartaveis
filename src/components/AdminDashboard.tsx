@@ -121,9 +121,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               <h1 className="text-xl font-bold">Painel Administrativo</h1>
               <p className="text-sm text-muted-foreground">Visão geral das operações</p>
             </div>
-              <h1 className="text-xl font-bold">Painel Administrativo</h1>
-              <p className="text-sm text-muted-foreground">Visão geral das operações</p>
-            </div>
 
             {pendingApproval.length > 0 && (
               <div className="bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/30 rounded-2xl p-4 flex items-center gap-3">
