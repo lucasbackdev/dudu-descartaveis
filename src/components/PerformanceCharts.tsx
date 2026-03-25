@@ -154,44 +154,43 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
         </div>
       </div>
 
-      {(
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="font-semibold text-sm mb-4">Distribuição de Entregas</h3>
-          {pieData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Sem dados de entrega no período</p>
-          ) : (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%" cy="50%"
-                  innerRadius={50} outerRadius={90}
-                  paddingAngle={3} dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap justify-center gap-3 mt-2">
-            {pieData.map(d => (
-              <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                <span className="text-muted-foreground">{d.name}</span>
-                <span className="font-bold">{d.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-          )}
-        </div>
-      )}
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <h3 className="font-semibold text-sm mb-4">Distribuição de Entregas</h3>
+        {pieData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Sem dados de entrega no período</p>
+        ) : (
+          <>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%" cy="50%"
+                    innerRadius={50} outerRadius={90}
+                    paddingAngle={3} dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 mt-2">
+              {pieData.map(d => (
+                <div key={d.name} className="flex items-center gap-1.5 text-xs">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                  <span className="text-muted-foreground">{d.name}</span>
+                  <span className="font-bold">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="bg-card border border-border rounded-2xl p-4">
         <h3 className="font-semibold text-sm mb-4">🏆 Ranking do Período</h3>
