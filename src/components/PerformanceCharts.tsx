@@ -87,16 +87,16 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
   const totalFiltered = filteredDeliveries.length;
   const totalDelivered = filteredDeliveries.filter(d => d.status === 'delivered').length;
 
-  if (deliveries.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-xl font-bold">Desempenho da Equipe</h1>
-          <p className="text-sm text-muted-foreground">Nenhuma entrega registrada ainda para exibir gráficos.</p>
-        </div>
-      </div>
-    );
-  }
+  // Always show charts, even when empty — placeholder data for visual effect
+  const emptyBarData = approvedEmployees.length === 0
+    ? [{ name: '—', entregues: 0, color: COLORS[0] }]
+    : barData.length > 0 ? barData : approvedEmployees.map((emp, i) => ({
+        name: emp.name.split(' ')[0],
+        entregues: 0,
+        color: empColorMap[emp.id] || COLORS[i % COLORS.length],
+      }));
+
+  const displayBarData = barData.length > 0 ? barData : emptyBarData;
 
   return (
     <div className="space-y-6">
@@ -139,13 +139,13 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
         <h3 className="font-semibold text-sm mb-4">Entregas por Funcionário</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={barData} barCategoryGap="20%">
+            <BarChart data={displayBarData} barCategoryGap="20%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="entregues" name="Entregues" radius={[8, 8, 0, 0]}>
-                {barData.map((entry, index) => (
+                {displayBarData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Bar>
@@ -154,44 +154,48 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
         </div>
       </div>
 
-      {pieData.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="font-semibold text-sm mb-4">Distribuição de Entregas</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%" cy="50%"
-                  innerRadius={50} outerRadius={90}
-                  paddingAngle={3} dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap justify-center gap-3 mt-2">
-            {pieData.map(d => (
-              <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                <span className="text-muted-foreground">{d.name}</span>
-                <span className="font-bold">{d.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <h3 className="font-semibold text-sm mb-4">Distribuição de Entregas</h3>
+        {pieData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Sem dados de entrega no período</p>
+        ) : (
+          <>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%" cy="50%"
+                    innerRadius={50} outerRadius={90}
+                    paddingAngle={3} dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 mt-2">
+              {pieData.map(d => (
+                <div key={d.name} className="flex items-center gap-1.5 text-xs">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                  <span className="text-muted-foreground">{d.name}</span>
+                  <span className="font-bold">{d.value}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="bg-card border border-border rounded-2xl p-4">
         <h3 className="font-semibold text-sm mb-4">🏆 Ranking do Período</h3>
         <div className="space-y-2">
-          {[...barData].sort((a, b) => b.entregues - a.entregues).map((emp, i) => (
+          {[...displayBarData].sort((a, b) => b.entregues - a.entregues).map((emp, i) => (
             <div key={emp.name} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
               <span className="text-lg font-bold w-8">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`}</span>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: emp.color }}>
