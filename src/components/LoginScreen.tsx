@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import logo from '@/assets/logo.png';
 import { supabase } from '@/integrations/supabase/client';
+import { WifiOff } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -13,10 +14,27 @@ const LoginScreen = ({ onLogin }: LoginScreenProps) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
       setError('Preencha todos os campos');
+      return;
+    }
+
+    if (isOffline) {
+      setError('Sem conexão com a internet. Conecte-se para fazer login pela primeira vez.');
       return;
     }
 
@@ -46,6 +64,18 @@ const LoginScreen = ({ onLogin }: LoginScreenProps) => {
           <p className="text-sm text-muted-foreground">Sistema de Gestão de Entregas</p>
         </div>
 
+        {isOffline && (
+          <div className="flex items-center gap-3 rounded-2xl p-4 bg-destructive/10 text-destructive border border-destructive/20">
+            <WifiOff className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Sem conexão</p>
+              <p className="text-xs opacity-80">
+                Conecte-se à internet para fazer login. Se já logou antes, seus dados serão carregados automaticamente.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-4">
           <Input
             placeholder="Email"
@@ -63,7 +93,7 @@ const LoginScreen = ({ onLogin }: LoginScreenProps) => {
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
           />
           {error && <p className="text-destructive text-sm text-center">{error}</p>}
-          <Button onClick={handleLogin} disabled={loading} className="w-full h-12 rounded-full text-base font-semibold">
+          <Button onClick={handleLogin} disabled={loading || isOffline} className="w-full h-12 rounded-full text-base font-semibold">
             {loading ? 'Entrando...' : 'Entrar'}
           </Button>
         </div>
