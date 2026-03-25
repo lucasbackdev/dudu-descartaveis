@@ -27,6 +27,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
   const [creating, setCreating] = useState(false);
