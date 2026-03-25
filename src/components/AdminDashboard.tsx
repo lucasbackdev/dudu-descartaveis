@@ -30,6 +30,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
   const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
   const [creating, setCreating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+    toast.success('Dados atualizados!');
+  };
 
   const fetchData = async () => {
     const [{ data: profiles }, { data: dels }] = await Promise.all([
