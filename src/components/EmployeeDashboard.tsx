@@ -36,6 +36,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isOnline, pendingCount, syncing, refreshPendingCount } = useOnlineStatus();
 
   // New delivery form
   const [client, setClient] = useState('');
