@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
-  ChevronRight, ChevronDown, Plus, Trash2, Send
+  ChevronRight, ChevronDown, Plus, Trash2, Send, Camera
 } from 'lucide-react';
 import { toast } from 'sonner';
 
