@@ -6,10 +6,10 @@ import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
   ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
-  WifiOff, Loader2, CloudUpload
+  WifiOff, Loader2, CloudUpload, RotateCw
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { addPendingOperation } from '@/lib/offlineSync';
+import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface EmployeeDashboardProps {
@@ -33,6 +33,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +89,32 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   };
 
   useEffect(() => { fetchDeliveries(); }, [profile.id]);
+
+  const handleRefresh = async () => {
+    if (!isOnline) {
+      toast.info('Sem conexão. Os dados pendentes serão enviados quando a internet voltar.');
+      return;
+    }
+
+    setRefreshing(true);
+
+    if (pendingCount > 0) {
+      const { synced, failed } = await syncPendingOperations();
+      refreshPendingCount();
+
+      if (synced > 0) {
+        toast.success(`${synced} operação(ões) sincronizada(s) com sucesso!`);
+      }
+
+      if (failed > 0) {
+        toast.error(`${failed} operação(ões) falharam ao sincronizar`);
+      }
+    }
+
+    await fetchDeliveries();
+    setRefreshing(false);
+    toast.success('Dados atualizados!');
+  };
 
   const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
     const updates: any = { status: newStatus };
@@ -287,9 +314,14 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
               {pending > 0 ? `Você tem ${pending} entrega(s) pendente(s)` : 'Todas entregas concluídas!'}
             </p>
           </div>
-          <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm">
-            <Plus className="w-4 h-4 mr-1" /> Nova
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleRefresh} disabled={refreshing || syncing} className="rounded-full" size="sm">
+              <RotateCw className={`w-4 h-4 ${refreshing || syncing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm">
+              <Plus className="w-4 h-4 mr-1" /> Nova
+            </Button>
+          </div>
         </div>
 
         {/* Create delivery form */}

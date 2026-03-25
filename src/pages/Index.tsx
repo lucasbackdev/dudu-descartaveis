@@ -27,63 +27,97 @@ function clearCachedProfile() {
   localStorage.removeItem(CACHED_SESSION_KEY);
 }
 
+function restoreCachedProfile() {
+  if (!localStorage.getItem(CACHED_SESSION_KEY)) return null;
+  return getCachedProfile();
+}
+
 const Index = () => {
-  const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const initialCachedProfile = restoreCachedProfile();
+  const [session, setSession] = useState<any>(initialCachedProfile ? { offline: true } : null);
+  const [profile, setProfile] = useState<Profile | null>(initialCachedProfile);
   const [loading, setLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+    let active = true;
+
+    const applyCachedSession = () => {
+      const cachedProfile = restoreCachedProfile();
+      if (!cachedProfile || !active) return false;
+      setProfile(cachedProfile);
+      setSession((current: any) => current ?? { offline: true });
+      return true;
     };
-  }, []);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        if (session?.user) {
-          setTimeout(async () => {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            if (data) {
-              const p = data as Profile;
-              setProfile(p);
-              cacheProfile(p);
-            }
-            setLoading(false);
-          }, 0);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
+    const loadProfile = async (userId: string) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!active) return;
+
+      if (data) {
+        const nextProfile = data as Profile;
+        setProfile(nextProfile);
+        cacheProfile(nextProfile);
+      } else if (!applyCachedSession()) {
+        setProfile(null);
       }
-    );
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        // If offline and has cached session, use cached profile
-        if (!navigator.onLine && localStorage.getItem(CACHED_SESSION_KEY)) {
-          const cached = getCachedProfile();
-          if (cached) {
-            setProfile(cached);
-            setSession({ offline: true });
-          }
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+
+      if (nextSession?.user) {
+        setSession(nextSession);
+        setTimeout(() => {
+          loadProfile(nextSession.user.id).finally(() => {
+            if (active) setLoading(false);
+          });
+        }, 0);
+        return;
+      }
+
+      if (event === 'SIGNED_OUT') {
+        clearCachedProfile();
+        setProfile(null);
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+
+      if (!navigator.onLine && applyCachedSession()) {
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+
+      if (session?.user) {
+        setSession(session);
+        loadProfile(session.user.id).finally(() => {
+          if (active) setLoading(false);
+        });
+        return;
+      }
+
+      if (!applyCachedSession()) {
+        setProfile(null);
+        setSession(null);
+      }
+
+      if (active) {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
