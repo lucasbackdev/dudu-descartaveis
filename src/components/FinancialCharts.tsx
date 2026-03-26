@@ -251,7 +251,7 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
       {/* Line chart for trend comparison */}
       {(compareMode || selectedEmployeeId) && (
         <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="font-semibold text-sm mb-4">Tendência de Receita (7 dias)</h3>
+          <h3 className="font-semibold text-sm mb-4">Tendência de Receita ({periodLabels[period]})</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyData}>
