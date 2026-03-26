@@ -7,11 +7,11 @@ type ConnectionStep = 'idle' | 'scanning' | 'selected' | 'connecting' | 'sending
 interface BluetoothPrinterModalProps {
   open: boolean;
   onClose: () => void;
-  onPrint: (device: BluetoothDevice) => Promise<void>;
+  onPrint: (device: any) => Promise<void>;
 }
 
 interface FoundDevice {
-  device: BluetoothDevice;
+  device: any;
   name: string;
 }
 
