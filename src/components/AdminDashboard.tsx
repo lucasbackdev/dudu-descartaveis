@@ -593,7 +593,81 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               />
             </div>
 
-            {emptyStockProducts.length > 0 && (
+            <Button
+              onClick={() => setShowCreateProduct(!showCreateProduct)}
+              className="w-full rounded-full h-11"
+              variant={showCreateProduct ? 'outline' : 'default'}
+            >
+              <Package className="w-4 h-4 mr-2" />
+              {showCreateProduct ? 'Cancelar' : 'Novo Produto'}
+            </Button>
+
+            {showCreateProduct && (
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-semibold">Cadastrar novo produto</p>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Nome do produto *"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                    className="h-10 rounded-lg bg-secondary border-0 text-sm"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Código"
+                      value={newProduct.code}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
+                      className="h-10 rounded-lg bg-secondary border-0 text-sm"
+                    />
+                    <Input
+                      placeholder="Categoria"
+                      value={newProduct.category}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
+                      className="h-10 rounded-lg bg-secondary border-0 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">Estoque</label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={newProduct.stock}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, stock: e.target.value }))}
+                        className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">Custo (R$)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newProduct.cost_price}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, cost_price: e.target.value }))}
+                        className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">Venda (R$)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newProduct.sale_price}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, sale_price: e.target.value }))}
+                        className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={createProduct} disabled={creatingProduct} className="w-full rounded-full h-10">
+                  <Save className="w-4 h-4 mr-2" />
+                  {creatingProduct ? 'Criando...' : 'Criar Produto'}
+                </Button>
+              </div>
+            )}
+
               <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-3">
                 <p className="text-xs font-semibold text-destructive">{emptyStockProducts.length} produto(s) sem estoque</p>
               </div>
