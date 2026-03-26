@@ -889,7 +889,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                       <p className="text-lg font-bold">{dbSize.used_mb} MB</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Limite (Plano Gratuito)</p>
+                      <p className="text-xs text-muted-foreground"><p className="text-xs text-muted-foreground">Limite</p></p>
                       <p className="text-sm font-medium">{dbSize.limit_mb} MB</p>
                     </div>
                     <div>
