@@ -42,6 +42,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stockSearch, setStockSearch] = useState('');
 
   const handleRefresh = async () => {
     setRefreshing(true);
