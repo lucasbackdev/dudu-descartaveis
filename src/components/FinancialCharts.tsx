@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
-import { Profile, Delivery } from '@/lib/types';
+import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import { CalendarDays, DollarSign, User, Users } from 'lucide-react';
 
 interface FinancialChartsProps {
@@ -19,12 +19,6 @@ const periodLabels: Record<Period, string> = {
   '30d': '30 dias',
   'all': 'Tudo',
 };
-
-const COLORS = [
-  'hsl(220, 90%, 56%)', 'hsl(340, 82%, 52%)',
-  'hsl(160, 84%, 39%)', 'hsl(32, 95%, 50%)',
-  'hsl(270, 70%, 55%)', 'hsl(190, 80%, 45%)',
-];
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -67,7 +61,7 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
   const empColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     approvedEmployees.forEach((emp, i) => {
-      map[emp.id] = COLORS[i % COLORS.length];
+      map[emp.id] = emp.color || EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length];
     });
     return map;
   }, [approvedEmployees]);
@@ -284,13 +278,13 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
         <h3 className="font-semibold text-sm mb-4">Receita Total por Funcionário</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revenueData.length > 0 ? revenueData : [{ name: '—', receita: 0, color: COLORS[0] }]} barCategoryGap="20%">
+            <BarChart data={revenueData.length > 0 ? revenueData : [{ name: '—', receita: 0, color: EMPLOYEE_COLORS[0] }]} barCategoryGap="20%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={v => `R$${v}`} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="receita" name="Receita" radius={[8, 8, 0, 0]}>
-                {(revenueData.length > 0 ? revenueData : [{ color: COLORS[0] }]).map((entry, index) => (
+                {(revenueData.length > 0 ? revenueData : [{ color: EMPLOYEE_COLORS[0] }]).map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Bar>

@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, Delivery } from '@/lib/types';
+import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import FinancialCharts from '@/components/FinancialCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell
+  DollarSign, Settings, Save, Edit2, Bell, Palette
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,7 +40,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
+  const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '', color: EMPLOYEE_COLORS[0] });
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -52,6 +52,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [stockAlertThreshold, setStockAlertThreshold] = useState(30);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  const getNextAvailableColor = () => {
+    const usedColors = employees.map(e => e.color).filter(Boolean);
+    return EMPLOYEE_COLORS.find(c => !usedColors.includes(c)) || EMPLOYEE_COLORS[0];
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -145,7 +150,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       body: { 
         name: newEmployee.name, 
         email: newEmployee.email, 
-        password: newEmployee.password 
+        password: newEmployee.password,
+        color: newEmployee.color,
       },
     });
     setCreating(false);
@@ -156,7 +162,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
 
     toast.success(`Funcionário ${newEmployee.name} criado com sucesso!`);
-    setNewEmployee({ name: '', email: '', password: '' });
+    setNewEmployee({ name: '', email: '', password: '', color: getNextAvailableColor() });
     setShowCreateEmployee(false);
     fetchData();
   };
@@ -669,6 +675,24 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                   onChange={(e) => setNewEmployee(prev => ({ ...prev, password: e.target.value }))}
                   className="h-11 rounded-full px-5 bg-secondary border-0"
                 />
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Palette className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-xs font-semibold text-muted-foreground">Cor do funcionário nos gráficos</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-secondary rounded-xl">
+                    {EMPLOYEE_COLORS.filter(c => !employees.map(e => e.color).includes(c)).map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setNewEmployee(prev => ({ ...prev, color }))}
+                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                          newEmployee.color === color ? 'border-foreground scale-110' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button onClick={handleCreateEmployee} disabled={creating} className="flex-1 rounded-full h-11">
                     {creating ? 'Criando...' : 'Criar Funcionário'}

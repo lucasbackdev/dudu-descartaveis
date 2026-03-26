@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { email, password, name } = await req.json()
+    const { email, password, name, color } = await req.json()
 
     if (!email || !password || !name) {
       return new Response(JSON.stringify({ error: 'Email, senha e nome são obrigatórios' }), {
@@ -61,6 +61,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: createError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
+    }
+
+    // Update profile color if provided
+    if (color && newUser.user) {
+      await supabaseAdmin.from('profiles').update({ color }).eq('id', newUser.user.id)
     }
 
     return new Response(JSON.stringify({ user: newUser.user }), {

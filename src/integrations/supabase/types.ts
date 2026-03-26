@@ -143,6 +143,7 @@ export type Database = {
         Row: {
           approved: boolean
           avatar_url: string | null
+          color: string
           created_at: string
           email: string
           id: string
@@ -152,6 +153,7 @@ export type Database = {
         Insert: {
           approved?: boolean
           avatar_url?: string | null
+          color?: string
           created_at?: string
           email: string
           id: string
@@ -161,6 +163,7 @@ export type Database = {
         Update: {
           approved?: boolean
           avatar_url?: string | null
+          color?: string
           created_at?: string
           email?: string
           id?: string
