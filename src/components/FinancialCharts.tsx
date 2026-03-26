@@ -214,10 +214,10 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
         </div>
       </div>
 
-      {/* Daily line chart - 7 day breakdown */}
+      {/* Daily chart */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <h3 className="font-semibold text-sm mb-1">
-          Receita Diária (7 dias)
+          Receita Diária ({periodLabels[period]})
         </h3>
         <p className="text-xs text-muted-foreground mb-4">
           {selectedEmployeeId
