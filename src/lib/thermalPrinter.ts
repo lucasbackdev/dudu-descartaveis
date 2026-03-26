@@ -218,11 +218,12 @@ const PRINTER_CHAR_UUIDS = [
 ];
 
 export async function printViaBluetooth(receiptBytes: number[]): Promise<void> {
-  if (!navigator.bluetooth) {
+  const nav = navigator as any;
+  if (!nav.bluetooth) {
     throw new Error('Bluetooth não suportado neste navegador. Use Chrome no Android.');
   }
 
-  const device = await navigator.bluetooth.requestDevice({
+  const device = await nav.bluetooth.requestDevice({
     filters: PRINTER_SERVICE_UUIDS.map(uuid => ({ services: [uuid] })),
     optionalServices: PRINTER_SERVICE_UUIDS,
   });
@@ -231,7 +232,7 @@ export async function printViaBluetooth(receiptBytes: number[]): Promise<void> {
 
   const server = await device.gatt.connect();
 
-  let writeChar: BluetoothRemoteGATTCharacteristic | null = null;
+  let writeChar: any = null;
 
   for (const svcUuid of PRINTER_SERVICE_UUIDS) {
     try {
