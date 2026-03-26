@@ -141,6 +141,19 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [stockAlertThreshold, setStockAlertThreshold] = useState(30);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [dbSize, setDbSize] = useState<{ used_mb: number; limit_mb: number; percentage: number } | null>(null);
+
+  const fetchDbSize = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_db_size_info');
+      if (!error && data) {
+        const info = typeof data === 'string' ? JSON.parse(data) : data;
+        setDbSize({ used_mb: info.used_mb, limit_mb: info.limit_mb, percentage: info.percentage });
+      }
+    } catch (e) {
+      console.error('Error fetching DB size:', e);
+    }
+  };
 
   const getNextAvailableColor = () => {
     const usedColors = employees.map(e => e.color).filter(Boolean);
