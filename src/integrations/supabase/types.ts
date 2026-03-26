@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_settings: {
+        Row: {
+          created_at: string
+          id: string
+          notify_on_empty: boolean
+          stock_alert_threshold: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notify_on_empty?: boolean
+          stock_alert_threshold?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notify_on_empty?: boolean
+          stock_alert_threshold?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       deliveries: {
         Row: {
           address: string
@@ -56,18 +80,21 @@ export type Database = {
           id: string
           name: string
           quantity: number
+          sale_price: number
         }
         Insert: {
           delivery_id: string
           id?: string
           name: string
           quantity?: number
+          sale_price?: number
         }
         Update: {
           delivery_id?: string
           id?: string
           name?: string
           quantity?: number
+          sale_price?: number
         }
         Relationships: [
           {

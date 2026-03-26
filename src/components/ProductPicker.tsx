@@ -7,7 +7,6 @@ interface Product {
   id: string;
   code: string;
   name: string;
-  sale_price: number;
 }
 
 interface ProductPickerProps {
@@ -24,7 +23,7 @@ const ProductPicker = ({ value, onChange }: ProductPickerProps) => {
 
   useEffect(() => {
     if (!loaded) {
-      supabase.from('products').select('id, code, name, sale_price').order('name').then(({ data }) => {
+      supabase.from('products').select('id, code, name').order('name').then(({ data }) => {
         setProducts((data as Product[]) || []);
         setLoaded(true);
       });
@@ -89,7 +88,7 @@ const ProductPicker = ({ value, onChange }: ProductPickerProps) => {
                 className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors flex items-center justify-between text-sm"
               >
                 <span className="truncate">{p.name}</span>
-                <span className="text-xs text-muted-foreground shrink-0 ml-2">R$ {Number(p.sale_price).toFixed(2)}</span>
+                <span className="text-xs text-muted-foreground shrink-0 ml-2">Cód: {p.code}</span>
               </button>
             ))
           )}
