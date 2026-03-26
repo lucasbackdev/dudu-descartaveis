@@ -134,6 +134,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ stock: string; cost_price: string; sale_price: string }>({ stock: '', cost_price: '', sale_price: '' });
   const [savingProduct, setSavingProduct] = useState(false);
+  const [showCreateProduct, setShowCreateProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', code: '', category: '', stock: '', cost_price: '', sale_price: '' });
+  const [creatingProduct, setCreatingProduct] = useState(false);
   const [stockAlertThreshold, setStockAlertThreshold] = useState(30);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
