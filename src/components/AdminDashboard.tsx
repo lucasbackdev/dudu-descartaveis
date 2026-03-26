@@ -34,6 +34,90 @@ const statusConfig = {
   delivered: { label: 'Entregue', icon: CheckCircle2, color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]' },
 };
 
+// Mobile bottom nav: shows first 3 tabs + "More" button with popover for the rest
+const BottomNav = ({ tabs, activeTab, onTabChange }: { 
+  tabs: { key: Tab; label: string; icon: typeof BarChart3 }[];
+  activeTab: Tab;
+  onTabChange: (tab: Tab) => void;
+}) => {
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const primaryTabs = tabs.slice(0, 3);
+  const secondaryTabs = tabs.slice(3);
+  const isSecondaryActive = secondaryTabs.some(t => t.key === activeTab);
+
+  useEffect(() => {
+    if (!showMore) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setShowMore(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMore]);
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border z-30">
+      <div className="max-w-2xl mx-auto flex items-center">
+        {primaryTabs.map(t => {
+          const Icon = t.icon;
+          const active = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => { onTabChange(t.key); setShowMore(false); }}
+              className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors ${
+                active ? 'text-foreground' : 'text-muted-foreground'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+
+        <div className="relative flex-1" ref={moreRef}>
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className={`w-full flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors ${
+              isSecondaryActive || showMore ? 'text-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+              isSecondaryActive ? 'bg-foreground text-background' : showMore ? 'bg-secondary' : 'bg-secondary/60'
+            }`}>
+              <MoreHorizontal className="w-5 h-5" />
+            </div>
+            <span>Mais</span>
+          </button>
+
+          {showMore && (
+            <div className="absolute bottom-full right-0 mb-2 mr-1 bg-card border border-border rounded-2xl shadow-2xl p-2 min-w-[180px] animate-in fade-in slide-in-from-bottom-2 z-40">
+              {secondaryTabs.map(t => {
+                const Icon = t.icon;
+                const active = activeTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => { onTabChange(t.key); setShowMore(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      active ? 'bg-foreground text-background' : 'text-foreground hover:bg-secondary'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+};
+
 const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
