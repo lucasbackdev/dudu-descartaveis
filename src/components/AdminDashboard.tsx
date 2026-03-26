@@ -53,12 +53,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   const fetchData = async () => {
-    const [{ data: profiles }, { data: dels }] = await Promise.all([
+    const [{ data: profiles }, { data: dels }, { data: prods }] = await Promise.all([
       supabase.from('profiles').select('*').eq('role', 'employee'),
       supabase.from('deliveries').select('*, delivery_items(*)').order('created_at', { ascending: false }),
+      supabase.from('products').select('*').order('name'),
     ]);
     setEmployees((profiles as Profile[]) || []);
     setDeliveries((dels as Delivery[]) || []);
+    setProducts((prods as Product[]) || []);
   };
 
   useEffect(() => { fetchData(); }, []);
