@@ -6,10 +6,11 @@ import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import LoadForecast from '@/components/LoadForecast';
 import FinancialCharts from '@/components/FinancialCharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database
 } from 'lucide-react';
 import { toast } from 'sonner';
 
