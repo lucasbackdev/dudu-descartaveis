@@ -217,17 +217,7 @@ const PRINTER_CHAR_UUIDS = [
   'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f',
 ];
 
-export async function printViaBluetooth(receiptBytes: number[]): Promise<void> {
-  const nav = navigator as any;
-  if (!nav.bluetooth) {
-    throw new Error('Bluetooth não suportado neste navegador. Use Chrome no Android.');
-  }
-
-  const device = await nav.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: PRINTER_SERVICE_UUIDS,
-  });
-
+export async function printViaBluetoothWithDevice(device: any, receiptBytes: number[]): Promise<void> {
   if (!device.gatt) throw new Error('GATT não disponível');
 
   const server = await device.gatt.connect();
