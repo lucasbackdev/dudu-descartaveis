@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import ProductPicker from '@/components/ProductPicker';
+import DeliveryReceiptPrint from '@/components/DeliveryReceiptPrint';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -470,12 +471,18 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                       </Button>
                     )}
                     {delivery.status === 'in_transit' && (
-                      <Button
-                        onClick={() => handleStatusChange(delivery.id, 'delivered')}
-                        className="w-full rounded-full h-11"
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
-                      </Button>
+                      <div className="space-y-3">
+                        <DeliveryReceiptPrint
+                          delivery={delivery}
+                          employeeName={profile.name}
+                        />
+                        <Button
+                          onClick={() => handleStatusChange(delivery.id, 'delivered')}
+                          className="w-full rounded-full h-11"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
+                        </Button>
+                      </div>
                     )}
                     {delivery.status === 'delivered' && delivery.completed_at && (
                       <div className="text-center text-xs text-muted-foreground">
