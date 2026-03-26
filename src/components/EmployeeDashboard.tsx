@@ -352,11 +352,9 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
                 <div key={idx} className="flex gap-2 mb-2">
-                  <Input
-                    placeholder="Nome do item"
+                  <ProductPicker
                     value={item.name}
-                    onChange={(e) => updateItem(idx, 'name', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 flex-1"
+                    onChange={(name) => updateItem(idx, 'name', name)}
                   />
                   <Input
                     placeholder="Qtd"
