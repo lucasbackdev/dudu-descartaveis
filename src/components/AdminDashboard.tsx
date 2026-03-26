@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, Delivery } from '@/lib/types';
+import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import FinancialCharts from '@/components/FinancialCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell
+  DollarSign, Settings, Save, Edit2, Bell, Palette
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,7 +40,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [showCreateEmployee, setShowCreateEmployee] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
+  const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '', color: EMPLOYEE_COLORS[0] });
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -145,7 +145,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       body: { 
         name: newEmployee.name, 
         email: newEmployee.email, 
-        password: newEmployee.password 
+        password: newEmployee.password,
+        color: newEmployee.color,
       },
     });
     setCreating(false);
@@ -156,7 +157,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
 
     toast.success(`Funcionário ${newEmployee.name} criado com sucesso!`);
-    setNewEmployee({ name: '', email: '', password: '' });
+    setNewEmployee({ name: '', email: '', password: '', color: getNextAvailableColor() });
     setShowCreateEmployee(false);
     fetchData();
   };
