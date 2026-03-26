@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +9,7 @@ import FinancialCharts from '@/components/FinancialCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -786,26 +786,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border">
-        <div className="max-w-2xl mx-auto flex overflow-x-auto">
-          {tabs.map(t => {
-            const Icon = t.icon;
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors min-w-0 ${
-                  active ? 'text-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      <BottomNav tabs={tabs} activeTab={tab} onTabChange={setTab} />
     </div>
   );
 };
