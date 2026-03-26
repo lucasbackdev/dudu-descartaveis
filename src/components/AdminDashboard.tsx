@@ -328,6 +328,44 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </>
         )}
 
+        {tab === 'stock' && (
+          <>
+            <div>
+              <h1 className="text-xl font-bold">Estoque</h1>
+              <p className="text-sm text-muted-foreground">{products.length} produtos cadastrados</p>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Buscar produto..."
+                value={stockSearch}
+                onChange={(e) => setStockSearch(e.target.value)}
+                className="h-11 rounded-full pl-10 bg-secondary border-0"
+              />
+            </div>
+
+            <div className="space-y-2">
+              {products
+                .filter(p => p.name.toLowerCase().includes(stockSearch.toLowerCase()) || p.code.includes(stockSearch))
+                .map(product => (
+                  <div key={product.id} className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-sm font-bold ${product.stock < 0 ? 'text-destructive' : product.stock === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {product.stock}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">R$ {Number(product.sale_price).toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </>
+        )}
+
         {tab === 'performance' && (
           <PerformanceCharts deliveries={deliveries} employees={employees} />
         )}
