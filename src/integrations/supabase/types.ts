@@ -79,6 +79,39 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          category: string
+          code: string
+          cost_price: number
+          created_at: string
+          id: string
+          name: string
+          sale_price: number
+          stock: number
+        }
+        Insert: {
+          category?: string
+          code?: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          name: string
+          sale_price?: number
+          stock?: number
+        }
+        Update: {
+          category?: string
+          code?: string
+          cost_price?: number
+          created_at?: string
+          id?: string
+          name?: string
+          sale_price?: number
+          stock?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean
