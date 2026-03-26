@@ -847,6 +847,67 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 </div>
               )}
             </div>
+
+            {/* Database Consumption */}
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <Database className="w-5 h-5 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Consumo de Banco de Dados</h3>
+              </div>
+
+              {dbSize ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-32 h-32 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Usado', value: dbSize.used_mb },
+                            { name: 'Livre', value: Math.max(0, dbSize.limit_mb - dbSize.used_mb) },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={35}
+                          outerRadius={55}
+                          startAngle={90}
+                          endAngle={-270}
+                          dataKey="value"
+                          strokeWidth={0}
+                        >
+                          <Cell fill={dbSize.percentage > 80 ? 'hsl(0, 70%, 50%)' : dbSize.percentage > 50 ? 'hsl(40, 80%, 50%)' : 'hsl(142, 70%, 45%)'} />
+                          <Cell fill="hsl(var(--muted))" />
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-bold">{dbSize.percentage}%</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Usado</p>
+                      <p className="text-lg font-bold">{dbSize.used_mb} MB</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Limite (Plano Gratuito)</p>
+                      <p className="text-sm font-medium">{dbSize.limit_mb} MB</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Disponível</p>
+                      <p className="text-sm font-medium text-[hsl(142,70%,45%)]">{(dbSize.limit_mb - dbSize.used_mb).toFixed(1)} MB</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-32">
+                  <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              <Button variant="outline" size="sm" className="w-full rounded-full" onClick={fetchDbSize}>
+                <RefreshCw className="w-4 h-4 mr-2" /> Atualizar Consumo
+              </Button>
+            </div>
           </>
         )}
 
