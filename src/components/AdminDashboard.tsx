@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
+import LoadForecast from '@/components/LoadForecast';
 import FinancialCharts from '@/components/FinancialCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
@@ -16,7 +17,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'settings';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'settings';
 
 interface Product {
   id: string;
@@ -253,6 +254,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
     { key: 'stock', label: 'Estoque', icon: BoxesIcon },
+    { key: 'forecast', label: 'Previsão', icon: TruckIcon },
     { key: 'financial', label: 'Financeiro', icon: DollarSign },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
