@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Printer, Plus, Trash2, AlertTriangle, Loader2, X } from 'lucide-react';
-import { buildReceipt, printViaBluetooth } from '@/lib/thermalPrinter';
+import { Printer, Plus, AlertTriangle, Loader2, X } from 'lucide-react';
+import { buildReceipt, printViaBluetoothWithDevice } from '@/lib/thermalPrinter';
 import { Delivery } from '@/lib/types';
 import { toast } from 'sonner';
+import BluetoothPrinterModal from './BluetoothPrinterModal';
 
 interface MissingItem {
   name: string;
@@ -20,7 +21,7 @@ interface DeliveryReceiptPrintProps {
 const DeliveryReceiptPrint = ({ delivery, employeeName, onPrintComplete }: DeliveryReceiptPrintProps) => {
   const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
   const [showMissing, setShowMissing] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const [showBtModal, setShowBtModal] = useState(false);
 
   const addMissingItem = () => setMissingItems([...missingItems, { name: '', quantity: '1' }]);
   const removeMissingItem = (idx: number) => setMissingItems(missingItems.filter((_, i) => i !== idx));
@@ -30,43 +31,31 @@ const DeliveryReceiptPrint = ({ delivery, employeeName, onPrintComplete }: Deliv
     setMissingItems(updated);
   };
 
-  const handlePrint = async () => {
-    setPrinting(true);
-    try {
-      const items = (delivery.delivery_items || []).map(i => ({
-        name: i.name,
-        quantity: i.quantity,
-        sale_price: (i as any).sale_price || 0,
-      }));
+  const handlePrintWithDevice = async (device: any) => {
+    const items = (delivery.delivery_items || []).map(i => ({
+      name: i.name,
+      quantity: i.quantity,
+      sale_price: (i as any).sale_price || 0,
+    }));
 
-      const missing = missingItems
-        .filter(m => m.name.trim())
-        .map(m => ({ name: m.name.trim(), quantity: parseInt(m.quantity) || 1 }));
+    const missing = missingItems
+      .filter(m => m.name.trim())
+      .map(m => ({ name: m.name.trim(), quantity: parseInt(m.quantity) || 1 }));
 
-      const receipt = buildReceipt({
-        client: delivery.client,
-        address: delivery.address,
-        employeeName,
-        items,
-        missingItems: missing,
-        notes: delivery.notes || undefined,
-        date: new Date().toLocaleString('pt-BR'),
-      });
+    const receipt = buildReceipt({
+      client: delivery.client,
+      address: delivery.address,
+      employeeName,
+      items,
+      missingItems: missing,
+      notes: delivery.notes || undefined,
+      date: new Date().toLocaleString('pt-BR'),
+    });
 
-      const bytes = await receipt.getBytes();
-      await printViaBluetooth(bytes);
-      toast.success('Nota impressa com sucesso!');
-      onPrintComplete?.();
-    } catch (err: any) {
-      if (err.name === 'NotFoundError' || err.message?.includes('cancelled')) {
-        toast.info('Impressão cancelada');
-      } else {
-        toast.error(err.message || 'Erro ao imprimir');
-        console.error('Print error:', err);
-      }
-    } finally {
-      setPrinting(false);
-    }
+    const bytes = await receipt.getBytes();
+    await printViaBluetoothWithDevice(device, bytes);
+    toast.success('Nota impressa com sucesso!');
+    onPrintComplete?.();
   };
 
   return (
@@ -118,18 +107,20 @@ const DeliveryReceiptPrint = ({ delivery, employeeName, onPrintComplete }: Deliv
 
       {/* Print button */}
       <Button
-        onClick={handlePrint}
-        disabled={printing}
+        onClick={() => setShowBtModal(true)}
         variant="outline"
         className="w-full rounded-full h-11 gap-2"
       >
-        {printing ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Printer className="w-4 h-4" />
-        )}
-        {printing ? 'Imprimindo...' : 'Imprimir Nota'}
+        <Printer className="w-4 h-4" />
+        Imprimir Nota
       </Button>
+
+      {/* Bluetooth modal */}
+      <BluetoothPrinterModal
+        open={showBtModal}
+        onClose={() => setShowBtModal(false)}
+        onPrint={handlePrintWithDevice}
+      />
     </div>
   );
 };
