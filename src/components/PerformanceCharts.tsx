@@ -86,7 +86,7 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
   const totalFiltered = filteredDeliveries.length;
   const totalDelivered = filteredDeliveries.filter(d => d.status === 'delivered').length;
 
-  // Daily breakdown
+  // Daily breakdown - uses real calendar dates
   const dailyData = useMemo(() => {
     const numDays = period === 'today' ? 1 : period === '7d' ? 7 : 30;
     const days: { date: Date; label: string }[] = [];
@@ -95,11 +95,9 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
       if (period === 'today') {
-        days.push({ date: d, label: 'Hoje' });
-      } else if (period === '7d') {
-        days.push({ date: d, label: `${WEEKDAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}` });
+        days.push({ date: d, label: `${WEEKDAYS[d.getDay()]} (Hoje)` });
       } else {
-        days.push({ date: d, label: `${d.getDate()}/${d.getMonth() + 1}` });
+        days.push({ date: d, label: `${WEEKDAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}` });
       }
     }
 
@@ -206,7 +204,7 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
       </div>
 
       {/* Daily breakdown chart */}
-      {period !== 'today' && (
+      {(
         <div className="bg-card border border-border rounded-2xl p-4">
           <h3 className="font-semibold text-sm mb-1">
             Entregas Diárias ({periodLabels[period]})
