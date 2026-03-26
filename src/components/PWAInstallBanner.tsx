@@ -7,6 +7,15 @@ const isIOS = () => {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 };
 
+const isIOSSafari = () => {
+  const ua = navigator.userAgent;
+  return isIOS() && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+};
+
+const isIOSChrome = () => {
+  return isIOS() && /CriOS/.test(navigator.userAgent);
+};
+
 const isInStandaloneMode = () => {
   return window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
 };
