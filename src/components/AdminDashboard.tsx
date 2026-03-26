@@ -53,6 +53,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [notifyOnEmpty, setNotifyOnEmpty] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  const getNextAvailableColor = () => {
+    const usedColors = employees.map(e => e.color).filter(Boolean);
+    return EMPLOYEE_COLORS.find(c => !usedColors.includes(c)) || EMPLOYEE_COLORS[0];
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchData();
