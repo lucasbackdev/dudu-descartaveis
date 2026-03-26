@@ -9,7 +9,7 @@ import FinancialCharts from '@/components/FinancialCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
