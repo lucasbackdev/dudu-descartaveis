@@ -11,9 +11,10 @@ interface FinancialChartsProps {
   employees: Profile[];
 }
 
-type Period = '7d' | '30d' | 'all';
+type Period = 'today' | '7d' | '30d' | 'all';
 
 const periodLabels: Record<Period, string> = {
+  'today': 'Hoje',
   '7d': '7 dias',
   '30d': '30 dias',
   'all': 'Tudo',
@@ -52,7 +53,8 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
   const cutoffDate = useMemo(() => {
     if (period === 'all') return new Date(0);
     const d = new Date();
-    if (period === '7d') d.setDate(d.getDate() - 7);
+    if (period === 'today') { d.setHours(0, 0, 0, 0); }
+    else if (period === '7d') d.setDate(d.getDate() - 7);
     else d.setDate(d.getDate() - 30);
     return d;
   }, [period]);
