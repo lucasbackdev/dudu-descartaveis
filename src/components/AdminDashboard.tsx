@@ -186,6 +186,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
     // Check stock alerts
     checkStockAlerts(prods as Product[] || []);
+
+    // Fetch DB size
+    fetchDbSize();
   };
 
   const checkStockAlerts = (productList: Product[]) => {
