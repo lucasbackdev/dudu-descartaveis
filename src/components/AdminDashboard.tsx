@@ -301,6 +301,31 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     fetchData();
   };
 
+  const createProduct = async () => {
+    if (!newProduct.name.trim()) {
+      toast.error('Nome do produto é obrigatório');
+      return;
+    }
+    setCreatingProduct(true);
+    const { error } = await supabase.from('products').insert({
+      name: newProduct.name.trim(),
+      code: newProduct.code.trim(),
+      category: newProduct.category.trim(),
+      stock: parseInt(newProduct.stock) || 0,
+      cost_price: parseFloat(newProduct.cost_price) || 0,
+      sale_price: parseFloat(newProduct.sale_price) || 0,
+    });
+    setCreatingProduct(false);
+    if (error) {
+      toast.error('Erro ao criar produto');
+      return;
+    }
+    setNewProduct({ name: '', code: '', category: '', stock: '', cost_price: '', sale_price: '' });
+    setShowCreateProduct(false);
+    toast.success('Produto criado!');
+    fetchData();
+  };
+
   const saveSettings = async () => {
     setSavingSettings(true);
 
