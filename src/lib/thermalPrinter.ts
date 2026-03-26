@@ -224,7 +224,7 @@ export async function printViaBluetooth(receiptBytes: number[]): Promise<void> {
   }
 
   const device = await nav.bluetooth.requestDevice({
-    filters: PRINTER_SERVICE_UUIDS.map(uuid => ({ services: [uuid] })),
+    acceptAllDevices: true,
     optionalServices: PRINTER_SERVICE_UUIDS,
   });
 
