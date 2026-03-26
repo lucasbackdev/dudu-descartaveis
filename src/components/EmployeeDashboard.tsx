@@ -27,6 +27,7 @@ const statusConfig = {
 interface NewItem {
   name: string;
   quantity: string;
+  sale_price: string;
 }
 
 const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
@@ -44,7 +45,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1' }]);
+  const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1', sale_price: '' }]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,7 +138,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     fetchDeliveries();
   };
 
-  const addItem = () => setItems([...items, { name: '', quantity: '1' }]);
+  const addItem = () => setItems([...items, { name: '', quantity: '1', sale_price: '' }]);
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: keyof NewItem, value: string) => {
     const updated = [...items];
@@ -149,7 +150,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     setClient('');
     setAddress('');
     setNotes('');
-    setItems([{ name: '', quantity: '1' }]);
+    setItems([{ name: '', quantity: '1', sale_price: '' }]);
     setShowCreate(false);
   };
 
@@ -168,6 +169,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     const validItemsMapped = validItems.map(item => ({
       name: item.name.trim(),
       quantity: parseInt(item.quantity) || 1,
+      sale_price: parseFloat(item.sale_price) || 0,
     }));
 
     const deliveryData = {
@@ -351,7 +353,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
+                <div key={idx} className="flex gap-2 mb-2 flex-wrap">
                   <ProductPicker
                     value={item.name}
                     onChange={(name) => updateItem(idx, 'name', name)}
@@ -363,6 +365,15 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                     value={item.quantity}
                     onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
                     className="h-10 rounded-full px-4 bg-secondary border-0 w-20"
+                  />
+                  <Input
+                    placeholder="R$ Valor"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.sale_price}
+                    onChange={(e) => updateItem(idx, 'sale_price', e.target.value)}
+                    className="h-10 rounded-full px-4 bg-secondary border-0 w-28"
                   />
                   {items.length > 1 && (
                     <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">

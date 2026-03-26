@@ -4,9 +4,11 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
+import FinancialCharts from '@/components/FinancialCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
+  DollarSign, Settings, Save, Edit2, Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +16,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'settings';
 
 interface Product {
   id: string;
@@ -44,6 +46,12 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockSearch, setStockSearch] = useState('');
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ stock: string; cost_price: string; sale_price: string }>({ stock: '', cost_price: '', sale_price: '' });
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [stockAlertThreshold, setStockAlertThreshold] = useState(30);
+  const [notifyOnEmpty, setNotifyOnEmpty] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -61,6 +69,51 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     setEmployees((profiles as Profile[]) || []);
     setDeliveries((dels as Delivery[]) || []);
     setProducts((prods as Product[]) || []);
+
+    // Load settings
+    const { data: settings } = await supabase.from('admin_settings').select('*').limit(1).single();
+    if (settings) {
+      setStockAlertThreshold((settings as any).stock_alert_threshold || 30);
+      setNotifyOnEmpty((settings as any).notify_on_empty !== false);
+    }
+
+    // Check stock alerts
+    checkStockAlerts(prods as Product[] || []);
+  };
+
+  const checkStockAlerts = (productList: Product[]) => {
+    productList.forEach(p => {
+      if (p.stock > 0 && p.stock <= stockAlertThreshold) {
+        // Show in-app alert
+      }
+      if (notifyOnEmpty && p.stock === 0) {
+        // Show in-app alert for empty
+      }
+    });
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // Send push notifications for low stock
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const lowStock = productList.filter(p => p.stock > 0 && p.stock <= stockAlertThreshold);
+      const emptyStock = productList.filter(p => p.stock === 0 && notifyOnEmpty);
+      
+      if (lowStock.length > 0) {
+        new Notification('⚠️ Estoque Baixo', {
+          body: `${lowStock.length} produto(s) com estoque baixo: ${lowStock.slice(0, 3).map(p => p.name).join(', ')}${lowStock.length > 3 ? '...' : ''}`,
+          icon: '/lovable-uploads/ChatGPT_Image_25_de_mar._de_2025_10_05_44.png',
+        });
+      }
+      if (emptyStock.length > 0) {
+        new Notification('🚨 Estoque Esgotado', {
+          body: `${emptyStock.length} produto(s) sem estoque: ${emptyStock.slice(0, 3).map(p => p.name).join(', ')}${emptyStock.length > 3 ? '...' : ''}`,
+          icon: '/lovable-uploads/ChatGPT_Image_25_de_mar._de_2025_10_05_44.png',
+        });
+      }
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -88,8 +141,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
 
     setCreating(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    
     const response = await supabase.functions.invoke('create-employee', {
       body: { 
         name: newEmployee.name, 
@@ -97,7 +148,6 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         password: newEmployee.password 
       },
     });
-
     setCreating(false);
 
     if (response.error || response.data?.error) {
@@ -129,16 +179,78 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     fetchData();
   };
 
+  const startEditProduct = (product: Product) => {
+    setEditingProductId(product.id);
+    setEditValues({
+      stock: String(product.stock),
+      cost_price: String(product.cost_price),
+      sale_price: String(product.sale_price),
+    });
+  };
+
+  const saveProduct = async (productId: string) => {
+    setSavingProduct(true);
+    const { error } = await supabase.from('products').update({
+      stock: parseInt(editValues.stock) || 0,
+      cost_price: parseFloat(editValues.cost_price) || 0,
+      sale_price: parseFloat(editValues.sale_price) || 0,
+    }).eq('id', productId);
+    setSavingProduct(false);
+
+    if (error) {
+      toast.error('Erro ao salvar produto');
+      return;
+    }
+
+    setEditingProductId(null);
+    toast.success('Produto atualizado!');
+    fetchData();
+  };
+
+  const saveSettings = async () => {
+    setSavingSettings(true);
+
+    // Upsert settings
+    const { data: existing } = await supabase.from('admin_settings').select('id').limit(1).single();
+    
+    if (existing) {
+      await supabase.from('admin_settings').update({
+        stock_alert_threshold: stockAlertThreshold,
+        notify_on_empty: notifyOnEmpty,
+      }).eq('id', (existing as any).id);
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('admin_settings').insert({
+        user_id: user?.id || '',
+        stock_alert_threshold: stockAlertThreshold,
+        notify_on_empty: notifyOnEmpty,
+      });
+    }
+
+    setSavingSettings(false);
+    toast.success('Configurações salvas!');
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  };
+
   const pendingApproval = employees.filter(u => !u.approved);
   const totalDelivered = deliveries.filter(d => d.status === 'delivered').length;
   const totalPending = deliveries.filter(d => d.status !== 'delivered').length;
+
+  const lowStockProducts = products.filter(p => p.stock > 0 && p.stock <= stockAlertThreshold);
+  const emptyStockProducts = products.filter(p => p.stock === 0);
 
   const tabs: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
     { key: 'stock', label: 'Estoque', icon: BoxesIcon },
+    { key: 'financial', label: 'Financeiro', icon: DollarSign },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
+    { key: 'settings', label: 'Config', icon: Settings },
   ];
 
   return (
@@ -177,6 +289,17 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                   <p className="text-xs text-muted-foreground">Vá até a aba Equipe para aprovar</p>
                 </div>
                 <Button size="sm" className="rounded-full" onClick={() => setTab('employees')}>Ver</Button>
+              </div>
+            )}
+
+            {lowStockProducts.length > 0 && (
+              <div className="bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/30 rounded-2xl p-4 flex items-center gap-3">
+                <Bell className="w-5 h-5 text-[hsl(var(--warning))]" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">{lowStockProducts.length} produto(s) com estoque baixo</p>
+                  <p className="text-xs text-muted-foreground">{lowStockProducts.slice(0, 2).map(p => p.name).join(', ')}</p>
+                </div>
+                <Button size="sm" className="rounded-full" onClick={() => setTab('stock')}>Ver</Button>
               </div>
             )}
 
@@ -302,10 +425,15 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                                   </span>
                                   <div>
                                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Itens</p>
-                                    {delivery.delivery_items?.map(item => (
+                                    {delivery.delivery_items?.map((item: any) => (
                                       <div key={item.id} className="flex justify-between text-sm py-0.5">
                                         <span>{item.name}</span>
-                                        <span className="font-semibold text-muted-foreground">x{item.quantity}</span>
+                                        <span className="font-semibold text-muted-foreground">
+                                          x{item.quantity}
+                                          {item.sale_price > 0 && (
+                                            <span className="ml-2 text-foreground">R$ {(Number(item.sale_price) * item.quantity).toFixed(2)}</span>
+                                          )}
+                                        </span>
                                       </div>
                                     ))}
                                   </div>
@@ -345,29 +473,165 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               />
             </div>
 
+            {emptyStockProducts.length > 0 && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-3">
+                <p className="text-xs font-semibold text-destructive">{emptyStockProducts.length} produto(s) sem estoque</p>
+              </div>
+            )}
+
             <div className="space-y-2">
               {products
                 .filter(p => p.name.toLowerCase().includes(stockSearch.toLowerCase()) || p.code.includes(stockSearch))
-                .map(product => (
-                  <div key={product.id} className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
+                .map(product => {
+                  const isEditing = editingProductId === product.id;
+                  const isLowStock = product.stock > 0 && product.stock <= stockAlertThreshold;
+
+                  return (
+                    <div key={product.id} className={`bg-card border rounded-2xl p-3 ${isLowStock ? 'border-[hsl(var(--warning))]/50' : product.stock === 0 ? 'border-destructive/50' : 'border-border'}`}>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold truncate">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[10px] text-muted-foreground">Estoque</label>
+                              <Input
+                                type="number"
+                                value={editValues.stock}
+                                onChange={(e) => setEditValues(prev => ({ ...prev, stock: e.target.value }))}
+                                className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-muted-foreground">Custo (R$)</label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={editValues.cost_price}
+                                onChange={(e) => setEditValues(prev => ({ ...prev, cost_price: e.target.value }))}
+                                className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-muted-foreground">Venda (R$)</label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={editValues.sale_price}
+                                onChange={(e) => setEditValues(prev => ({ ...prev, sale_price: e.target.value }))}
+                                className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => saveProduct(product.id)} disabled={savingProduct} className="flex-1 rounded-full h-9">
+                              <Save className="w-3 h-3 mr-1" /> {savingProduct ? 'Salvando...' : 'Salvar'}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditingProductId(null)} className="rounded-full h-9">
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-sm font-bold ${product.stock <= 0 ? 'text-destructive' : isLowStock ? 'text-[hsl(var(--warning))]' : 'text-foreground'}`}>
+                              {product.stock} un
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              C: R${Number(product.cost_price).toFixed(2)} | V: R${Number(product.sale_price).toFixed(2)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => startEditProduct(product)}
+                            className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold ${product.stock < 0 ? 'text-destructive' : product.stock === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
-                        {product.stock}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">R$ {Number(product.sale_price).toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           </>
         )}
 
+        {tab === 'financial' && (
+          <FinancialCharts deliveries={deliveries} employees={employees} />
+        )}
+
         {tab === 'performance' && (
           <PerformanceCharts deliveries={deliveries} employees={employees} />
+        )}
+
+        {tab === 'settings' && (
+          <>
+            <div>
+              <h1 className="text-xl font-bold">Configurações</h1>
+              <p className="text-sm text-muted-foreground">Preferências do sistema</p>
+            </div>
+
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Notificações de Estoque</h3>
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground">Notificar quando estoque atingir (%)</label>
+                <div className="flex items-center gap-3 mt-1">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={stockAlertThreshold}
+                    onChange={(e) => setStockAlertThreshold(parseInt(e.target.value) || 30)}
+                    className="h-11 rounded-full px-5 bg-secondary border-0 w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">unidades restantes</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Notificar quando esgotar</p>
+                  <p className="text-xs text-muted-foreground">Receber alerta quando estoque chegar a zero</p>
+                </div>
+                <button
+                  onClick={() => setNotifyOnEmpty(!notifyOnEmpty)}
+                  className={`w-12 h-7 rounded-full transition-colors ${notifyOnEmpty ? 'bg-primary' : 'bg-muted'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full transition-transform mx-1 ${notifyOnEmpty ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              <Button onClick={saveSettings} disabled={savingSettings} className="w-full rounded-full h-11">
+                <Save className="w-4 h-4 mr-2" />
+                {savingSettings ? 'Salvando...' : 'Salvar Configurações'}
+              </Button>
+
+              {'Notification' in window && Notification.permission !== 'granted' && (
+                <div className="bg-secondary rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Para receber notificações push, permita as notificações no navegador.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => Notification.requestPermission()}
+                  >
+                    Permitir Notificações
+                  </Button>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {tab === 'employees' && (
@@ -493,7 +757,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border">
-        <div className="max-w-2xl mx-auto flex">
+        <div className="max-w-2xl mx-auto flex overflow-x-auto">
           {tabs.map(t => {
             const Icon = t.icon;
             const active = tab === t.key;
@@ -501,11 +765,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+                className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors min-w-0 ${
                   active ? 'text-foreground' : 'text-muted-foreground'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4" />
                 {t.label}
               </button>
             );
