@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bluetooth, BluetoothSearching, Loader2, CheckCircle2, XCircle, Printer, Smartphone, X, Radio } from 'lucide-react';
+import { isNativeApp, initBle, scanDevices, stopScan as nativeStopScan, NativeBleDevice } from '@/lib/nativeBluetooth';
 
 type ConnectionStep = 'idle' | 'scanning' | 'selected' | 'connecting' | 'sending' | 'done' | 'error';
 
@@ -15,6 +16,7 @@ interface FoundDevice {
   name: string;
   device: any;
   rssi?: number;
+  isNative?: boolean;
 }
 
 const PRINTER_SERVICE_UUIDS = [
@@ -31,6 +33,7 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
   const [scanning, setScanning] = useState(false);
   const scanRef = useRef<any>(null);
   const devicesRef = useRef<FoundDevice[]>([]);
+  const isNative = isNativeApp();
 
   useEffect(() => {
     if (open) {
@@ -40,24 +43,25 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
       setDevices([]);
       devicesRef.current = [];
     } else {
-      stopScan();
+      handleStopScan();
     }
   }, [open]);
 
-  const stopScan = useCallback(() => {
-    if (scanRef.current) {
+  const handleStopScan = useCallback(() => {
+    if (isNative) {
+      nativeStopScan();
+    } else if (scanRef.current) {
       try { scanRef.current.stop(); } catch {}
       scanRef.current = null;
     }
     setScanning(false);
-  }, []);
+  }, [isNative]);
 
   const handleAdvertisement = useCallback((event: any) => {
     const dev = event.device;
     const id = dev.id || dev.name || `unknown-${Math.random()}`;
     const name = dev.name || `Dispositivo ${id.slice(0, 8)}`;
     
-    // Check if already in list
     const exists = devicesRef.current.find(d => d.id === id);
     if (!exists) {
       const newDev: FoundDevice = { id, name, device: dev, rssi: event.rssi };
@@ -66,7 +70,39 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
     }
   }, []);
 
-  const startLEScan = async () => {
+  const startNativeScan = async () => {
+    setStep('scanning');
+    setScanning(true);
+    setDevices([]);
+    devicesRef.current = [];
+    setErrorMsg('');
+
+    try {
+      await initBle();
+      await scanDevices((device: NativeBleDevice) => {
+        const exists = devicesRef.current.find(d => d.id === device.deviceId);
+        if (!exists) {
+          const newDev: FoundDevice = {
+            id: device.deviceId,
+            name: device.name,
+            device: { deviceId: device.deviceId },
+            rssi: device.rssi,
+            isNative: true,
+          };
+          devicesRef.current = [...devicesRef.current, newDev];
+          setDevices([...devicesRef.current]);
+        }
+      }, 20000);
+
+      setTimeout(() => setScanning(false), 20000);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erro ao buscar dispositivos Bluetooth');
+      setStep('error');
+      setScanning(false);
+    }
+  };
+
+  const startWebScan = async () => {
     setStep('scanning');
     setScanning(true);
     setDevices([]);
@@ -75,31 +111,28 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
 
     const nav = navigator as any;
     if (!nav.bluetooth) {
-      setErrorMsg('Bluetooth não suportado neste navegador. Use Chrome no Android.');
+      setErrorMsg('Bluetooth não suportado neste navegador. Use Chrome no Android ou instale o app nativo.');
       setStep('error');
       return;
     }
 
-    // Try experimental requestLEScan first (live scanning)
+    // Try experimental requestLEScan first
     if (nav.bluetooth.requestLEScan) {
       try {
         const scan = await nav.bluetooth.requestLEScan({ acceptAllAdvertisements: true });
         scanRef.current = scan;
         nav.bluetooth.addEventListener('advertisementreceived', handleAdvertisement);
-
-        // Auto-stop after 30s
         setTimeout(() => {
-          stopScan();
+          handleStopScan();
           nav.bluetooth.removeEventListener('advertisementreceived', handleAdvertisement);
         }, 30000);
         return;
       } catch (err: any) {
-        // If user denied or not supported, fall through
         console.warn('requestLEScan not available:', err);
       }
     }
 
-    // Fallback: use requestDevice (shows browser dialog but we capture the result)
+    // Fallback: requestDevice (browser dialog)
     try {
       const device = await nav.bluetooth.requestDevice({
         acceptAllDevices: true,
@@ -127,12 +160,22 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
     }
   };
 
+  const startScan = () => {
+    if (isNative) {
+      startNativeScan();
+    } else {
+      startWebScan();
+    }
+  };
+
   const selectDevice = (dev: FoundDevice) => {
     setSelectedDevice(dev);
-    stopScan();
-    const nav = navigator as any;
-    if (nav.bluetooth) {
-      try { nav.bluetooth.removeEventListener('advertisementreceived', handleAdvertisement); } catch {}
+    handleStopScan();
+    if (!isNative) {
+      const nav = navigator as any;
+      if (nav.bluetooth) {
+        try { nav.bluetooth.removeEventListener('advertisementreceived', handleAdvertisement); } catch {}
+      }
     }
     setStep('selected');
   };
@@ -169,14 +212,16 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
           </div>
           <div>
             <h3 className="font-bold text-lg">Impressora Bluetooth</h3>
-            <p className="text-xs text-muted-foreground">Conecte à sua impressora térmica</p>
+            <p className="text-xs text-muted-foreground">
+              {isNative ? 'Conexão nativa • Bluetooth LE' : 'Conecte à sua impressora térmica'}
+            </p>
           </div>
         </div>
 
         {/* IDLE */}
         {step === 'idle' && (
           <div className="space-y-4">
-            <Button onClick={startLEScan} className="w-full rounded-full h-12 gap-2 text-base">
+            <Button onClick={startScan} className="w-full rounded-full h-12 gap-2 text-base">
               <BluetoothSearching className="w-5 h-5" />
               Buscar Dispositivos
             </Button>
@@ -189,7 +234,6 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
         {/* SCANNING */}
         {step === 'scanning' && (
           <div className="flex flex-col flex-1 min-h-0">
-            {/* Scanning indicator */}
             <div className="flex items-center gap-3 mb-4 px-1">
               <div className="relative">
                 <Radio className="w-6 h-6 text-primary animate-pulse" />
@@ -199,12 +243,11 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
                 <p className="text-sm font-semibold">Buscando dispositivos...</p>
                 <p className="text-xs text-muted-foreground">{devices.length} encontrado{devices.length !== 1 ? 's' : ''}</p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => { stopScan(); setStep(devices.length > 0 ? 'scanning' : 'idle'); }} className="text-xs">
+              <Button variant="ghost" size="sm" onClick={() => { handleStopScan(); setStep(devices.length > 0 ? 'scanning' : 'idle'); }} className="text-xs">
                 Parar
               </Button>
             </div>
 
-            {/* Device list */}
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-0 max-h-[45vh]">
               {devices.map((dev, i) => (
                 <button
@@ -263,7 +306,7 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={startLEScan} className="flex-1 rounded-full h-11">
+              <Button variant="outline" onClick={startScan} className="flex-1 rounded-full h-11">
                 Trocar
               </Button>
               <Button onClick={connectAndPrint} className="flex-1 rounded-full h-11 gap-2">
@@ -318,7 +361,7 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
             <p className="text-xs text-muted-foreground text-center">{errorMsg}</p>
             <div className="flex gap-2 w-full">
               <Button variant="outline" onClick={onClose} className="flex-1 rounded-full h-11">Cancelar</Button>
-              <Button onClick={startLEScan} className="flex-1 rounded-full h-11">Tentar novamente</Button>
+              <Button onClick={startScan} className="flex-1 rounded-full h-11">Tentar novamente</Button>
             </div>
           </div>
         )}

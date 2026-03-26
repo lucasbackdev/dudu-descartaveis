@@ -218,6 +218,14 @@ const PRINTER_CHAR_UUIDS = [
 ];
 
 export async function printViaBluetoothWithDevice(device: any, receiptBytes: number[]): Promise<void> {
+  // Check if this is a native Capacitor device (has deviceId instead of gatt)
+  if (device.deviceId && !device.gatt) {
+    const { printViaNativeBle } = await import('@/lib/nativeBluetooth');
+    await printViaNativeBle(device.deviceId, receiptBytes);
+    return;
+  }
+
+  // Web Bluetooth path
   if (!device.gatt) throw new Error('GATT não disponível');
 
   const server = await device.gatt.connect();
@@ -241,7 +249,6 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
   }
 
   if (!writeChar) {
-    // Fallback: try all characteristics
     for (const svcUuid of PRINTER_SERVICE_UUIDS) {
       try {
         const service = await server.getPrimaryService(svcUuid);
@@ -262,7 +269,6 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
     throw new Error('Não foi possível encontrar a característica de escrita da impressora');
   }
 
-  // Send in chunks (BLE max ~512 bytes per write, safe at 100)
   const chunkSize = 100;
   const data = new Uint8Array(receiptBytes);
 
@@ -273,7 +279,6 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
     } else {
       await writeChar.writeValue(chunk);
     }
-    // Small delay between chunks
     await new Promise(r => setTimeout(r, 20));
   }
 
