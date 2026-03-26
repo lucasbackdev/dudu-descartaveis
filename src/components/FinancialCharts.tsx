@@ -88,14 +88,19 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
     [approvedEmployees, filteredDeliveries, empColorMap]
   );
 
-  // Daily breakdown for the last 7 days
+  // Daily breakdown - respects period and uses real calendar dates
   const dailyData = useMemo(() => {
+    const numDays = period === 'today' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : 30;
     const days: { date: Date; label: string }[] = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = numDays - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
-      days.push({ date: d, label: `${WEEKDAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}` });
+      if (period === 'today') {
+        days.push({ date: d, label: `${WEEKDAYS[d.getDay()]} (Hoje)` });
+      } else {
+        days.push({ date: d, label: `${WEEKDAYS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}` });
+      }
     }
 
     const empsToShow = compareMode
@@ -122,7 +127,7 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
       });
       return row;
     });
-  }, [filteredDeliveries, approvedEmployees, selectedEmployeeId, compareMode]);
+  }, [filteredDeliveries, approvedEmployees, selectedEmployeeId, compareMode, period]);
 
   const empsForDailyChart = compareMode
     ? approvedEmployees
@@ -209,10 +214,10 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
         </div>
       </div>
 
-      {/* Daily line chart - 7 day breakdown */}
+      {/* Daily chart */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <h3 className="font-semibold text-sm mb-1">
-          Receita Diária (7 dias)
+          Receita Diária ({periodLabels[period]})
         </h3>
         <p className="text-xs text-muted-foreground mb-4">
           {selectedEmployeeId
@@ -246,7 +251,7 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
       {/* Line chart for trend comparison */}
       {(compareMode || selectedEmployeeId) && (
         <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="font-semibold text-sm mb-4">Tendência de Receita (7 dias)</h3>
+          <h3 className="font-semibold text-sm mb-4">Tendência de Receita ({periodLabels[period]})</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyData}>
