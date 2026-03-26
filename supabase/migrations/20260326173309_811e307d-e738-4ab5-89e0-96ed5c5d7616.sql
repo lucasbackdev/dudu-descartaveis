@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN color text NOT NULL DEFAULT '#3B82F6';
