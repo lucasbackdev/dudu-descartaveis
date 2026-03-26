@@ -668,6 +668,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               </div>
             )}
 
+            {emptyStockProducts.length > 0 && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-3">
                 <p className="text-xs font-semibold text-destructive">{emptyStockProducts.length} produto(s) sem estoque</p>
               </div>
