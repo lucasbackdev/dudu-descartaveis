@@ -77,10 +77,10 @@ const DeliveryReceiptPrint = ({ delivery, employeeName, onPrintComplete }: Deliv
           onClick={() => setShowMissing(!showMissing)}
           className="flex items-center gap-2 text-sm font-semibold w-full text-left"
         >
-          <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <AlertTriangle className="w-4 h-4 text-destructive" />
           <span>Itens em falta</span>
           {missingItems.length > 0 && (
-            <span className="text-xs bg-amber-500/20 text-amber-600 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded-full">
               {missingItems.filter(m => m.name.trim()).length}
             </span>
           )}
