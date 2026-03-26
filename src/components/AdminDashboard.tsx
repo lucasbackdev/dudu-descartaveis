@@ -577,6 +577,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           <PerformanceCharts deliveries={deliveries} employees={employees} />
         )}
 
+        {tab === 'forecast' && (
+          <LoadForecast deliveries={deliveries} employees={employees} />
+        )}
+
         {tab === 'settings' && (
           <>
             <div>
