@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
-import { Profile, Delivery } from '@/lib/types';
+import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import { CalendarDays, DollarSign, User, Users } from 'lucide-react';
 
 interface FinancialChartsProps {
@@ -20,11 +20,7 @@ const periodLabels: Record<Period, string> = {
   'all': 'Tudo',
 };
 
-const COLORS = [
-  'hsl(220, 90%, 56%)', 'hsl(340, 82%, 52%)',
-  'hsl(160, 84%, 39%)', 'hsl(32, 95%, 50%)',
-  'hsl(270, 70%, 55%)', 'hsl(190, 80%, 45%)',
-];
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -67,7 +63,7 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
   const empColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     approvedEmployees.forEach((emp, i) => {
-      map[emp.id] = COLORS[i % COLORS.length];
+      map[emp.id] = emp.color || EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length];
     });
     return map;
   }, [approvedEmployees]);

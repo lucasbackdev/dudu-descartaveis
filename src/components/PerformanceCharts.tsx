@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
-import { Profile, Delivery } from '@/lib/types';
+import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import { CalendarDays, User, Users } from 'lucide-react';
 
 interface PerformanceChartsProps {
@@ -18,12 +18,6 @@ const periodLabels: Record<Period, string> = {
   '7d': '7 dias',
   '30d': '30 dias',
 };
-
-const COLORS = [
-  'hsl(220, 90%, 56%)', 'hsl(340, 82%, 52%)',
-  'hsl(160, 84%, 39%)', 'hsl(32, 95%, 50%)',
-  'hsl(270, 70%, 55%)', 'hsl(190, 80%, 45%)',
-];
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -67,7 +61,7 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
   const empColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     approvedEmployees.forEach((emp, i) => {
-      map[emp.id] = COLORS[i % COLORS.length];
+      map[emp.id] = emp.color || EMPLOYEE_COLORS[i % EMPLOYEE_COLORS.length];
     });
     return map;
   }, [approvedEmployees]);
