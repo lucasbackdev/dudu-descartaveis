@@ -114,8 +114,8 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
       devicesRef.current = [found];
       setDevices([found]);
       setSelectedDevice(found);
-      setStep('selected');
       setScanning(false);
+      setStep('scanning');
     } catch (err: any) {
       if (err.name === 'NotFoundError' || err.message?.includes('cancelled')) {
         setStep('idle');
