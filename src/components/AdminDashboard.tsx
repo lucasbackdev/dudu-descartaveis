@@ -136,6 +136,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const tabs: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
+    { key: 'stock', label: 'Estoque', icon: BoxesIcon },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
   ];
