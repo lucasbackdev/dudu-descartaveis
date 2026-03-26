@@ -27,6 +27,7 @@ const statusConfig = {
 interface NewItem {
   name: string;
   quantity: string;
+  sale_price: string;
 }
 
 const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
@@ -44,7 +45,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [client, setClient] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1' }]);
+  const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1', sale_price: '' }]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,7 +138,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     fetchDeliveries();
   };
 
-  const addItem = () => setItems([...items, { name: '', quantity: '1' }]);
+  const addItem = () => setItems([...items, { name: '', quantity: '1', sale_price: '' }]);
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: keyof NewItem, value: string) => {
     const updated = [...items];
@@ -149,7 +150,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     setClient('');
     setAddress('');
     setNotes('');
-    setItems([{ name: '', quantity: '1' }]);
+    setItems([{ name: '', quantity: '1', sale_price: '' }]);
     setShowCreate(false);
   };
 
@@ -168,6 +169,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     const validItemsMapped = validItems.map(item => ({
       name: item.name.trim(),
       quantity: parseInt(item.quantity) || 1,
+      sale_price: parseFloat(item.sale_price) || 0,
     }));
 
     const deliveryData = {
