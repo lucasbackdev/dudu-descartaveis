@@ -6,7 +6,7 @@ import { Profile, Delivery } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +14,16 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock';
+
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  stock: number;
+  cost_price: number;
+  sale_price: number;
+}
 
 const statusConfig = {
   pending: { label: 'Pendente', icon: Clock, color: 'bg-muted text-muted-foreground' },
