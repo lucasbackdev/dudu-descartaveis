@@ -134,6 +134,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ stock: string; cost_price: string; sale_price: string }>({ stock: '', cost_price: '', sale_price: '' });
   const [savingProduct, setSavingProduct] = useState(false);
+  const [showCreateProduct, setShowCreateProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', code: '', category: '', stock: '', cost_price: '', sale_price: '' });
+  const [creatingProduct, setCreatingProduct] = useState(false);
   const [stockAlertThreshold, setStockAlertThreshold] = useState(30);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -295,6 +298,31 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
     setEditingProductId(null);
     toast.success('Produto atualizado!');
+    fetchData();
+  };
+
+  const createProduct = async () => {
+    if (!newProduct.name.trim()) {
+      toast.error('Nome do produto é obrigatório');
+      return;
+    }
+    setCreatingProduct(true);
+    const { error } = await supabase.from('products').insert({
+      name: newProduct.name.trim(),
+      code: newProduct.code.trim(),
+      category: newProduct.category.trim(),
+      stock: parseInt(newProduct.stock) || 0,
+      cost_price: parseFloat(newProduct.cost_price) || 0,
+      sale_price: parseFloat(newProduct.sale_price) || 0,
+    });
+    setCreatingProduct(false);
+    if (error) {
+      toast.error('Erro ao criar produto');
+      return;
+    }
+    setNewProduct({ name: '', code: '', category: '', stock: '', cost_price: '', sale_price: '' });
+    setShowCreateProduct(false);
+    toast.success('Produto criado!');
     fetchData();
   };
 
@@ -564,6 +592,81 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 className="h-11 rounded-full pl-10 bg-secondary border-0"
               />
             </div>
+
+            <Button
+              onClick={() => setShowCreateProduct(!showCreateProduct)}
+              className="w-full rounded-full h-11"
+              variant={showCreateProduct ? 'outline' : 'default'}
+            >
+              <Package className="w-4 h-4 mr-2" />
+              {showCreateProduct ? 'Cancelar' : 'Novo Produto'}
+            </Button>
+
+            {showCreateProduct && (
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-semibold">Cadastrar novo produto</p>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Nome do produto *"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
+                    className="h-10 rounded-lg bg-secondary border-0 text-sm"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Código"
+                      value={newProduct.code}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, code: e.target.value }))}
+                      className="h-10 rounded-lg bg-secondary border-0 text-sm"
+                    />
+                    <Input
+                      placeholder="Categoria"
+                      value={newProduct.category}
+                      onChange={(e) => setNewProduct(prev => ({ ...prev, category: e.target.value }))}
+                      className="h-10 rounded-lg bg-secondary border-0 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">Estoque</label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={newProduct.stock}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, stock: e.target.value }))}
+                        className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">Custo (R$)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newProduct.cost_price}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, cost_price: e.target.value }))}
+                        className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">Venda (R$)</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newProduct.sale_price}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, sale_price: e.target.value }))}
+                        className="h-9 rounded-lg bg-secondary border-0 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={createProduct} disabled={creatingProduct} className="w-full rounded-full h-10">
+                  <Save className="w-4 h-4 mr-2" />
+                  {creatingProduct ? 'Criando...' : 'Criar Produto'}
+                </Button>
+              </div>
+            )}
 
             {emptyStockProducts.length > 0 && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-3">
