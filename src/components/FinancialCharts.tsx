@@ -22,8 +22,6 @@ const periodLabels: Record<Period, string> = {
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
@@ -280,13 +278,13 @@ const FinancialCharts = ({ deliveries, employees }: FinancialChartsProps) => {
         <h3 className="font-semibold text-sm mb-4">Receita Total por Funcionário</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revenueData.length > 0 ? revenueData : [{ name: '—', receita: 0, color: COLORS[0] }]} barCategoryGap="20%">
+            <BarChart data={revenueData.length > 0 ? revenueData : [{ name: '—', receita: 0, color: EMPLOYEE_COLORS[0] }]} barCategoryGap="20%">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={v => `R$${v}`} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="receita" name="Receita" radius={[8, 8, 0, 0]}>
-                {(revenueData.length > 0 ? revenueData : [{ color: COLORS[0] }]).map((entry, index) => (
+                {(revenueData.length > 0 ? revenueData : [{ color: EMPLOYEE_COLORS[0] }]).map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Bar>

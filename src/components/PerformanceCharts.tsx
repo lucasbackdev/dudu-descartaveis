@@ -130,7 +130,7 @@ const PerformanceCharts = ({ deliveries, employees }: PerformanceChartsProps) =>
       ? approvedEmployees.filter(e => e.id === selectedEmployeeId)
       : approvedEmployees;
 
-  const displayBarData = barData.length > 0 ? barData : [{ name: '—', entregues: 0, pendentes: 0, total: 0, color: COLORS[0], id: '' }];
+  const displayBarData = barData.length > 0 ? barData : [{ name: '—', entregues: 0, pendentes: 0, total: 0, color: EMPLOYEE_COLORS[0], id: '' }];
 
   return (
     <div className="space-y-6">
