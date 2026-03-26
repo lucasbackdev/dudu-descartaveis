@@ -25,10 +25,12 @@ const PWAInstallBanner = () => {
   const [dismissed, setDismissed] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isiOSDevice, setIsiOSDevice] = useState(false);
+  const [isiOSNotSafari, setIsiOSNotSafari] = useState(false);
 
   useEffect(() => {
     if (isIOS() && !isInStandaloneMode()) {
       setIsiOSDevice(true);
+      setIsiOSNotSafari(!isIOSSafari());
     }
   }, []);
 
@@ -42,7 +44,9 @@ const PWAInstallBanner = () => {
           <Download className="h-6 w-6 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm">Instalar Dudu Descartáveis</p>
-            <p className="text-xs opacity-80">Adicione à tela de início</p>
+            <p className="text-xs opacity-80">
+              {isiOSNotSafari ? 'Abra no Safari para instalar' : 'Adicione à tela de início'}
+            </p>
           </div>
           <Button
             size="sm"
@@ -68,13 +72,35 @@ const PWAInstallBanner = () => {
               </div>
 
               <div className="space-y-4">
+                {isiOSNotSafari && (
+                  <div className="bg-destructive/10 text-destructive rounded-lg p-3 mb-2">
+                    <p className="text-sm font-semibold">⚠️ Você está no Chrome</p>
+                    <p className="text-xs mt-1">No iPhone, só o <strong>Safari</strong> permite instalar apps. Copie o link e abra no Safari:</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 w-full text-xs"
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.href);
+                        alert('Link copiado! Cole no Safari.');
+                      }}
+                    >
+                      📋 Copiar link do app
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">1</div>
+                  <div className="bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">
+                    {isiOSNotSafari ? '1' : '1'}
+                  </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Toque no botão <strong>Compartilhar</strong></p>
+                    <p className="text-sm font-medium">
+                      {isiOSNotSafari ? 'Abra este link no Safari' : <>Toque no botão <strong>Compartilhar</strong></>}
+                    </p>
                     <div className="flex items-center gap-1 mt-1 text-muted-foreground">
                       <Share className="h-5 w-5" />
-                      <span className="text-xs">(ícone na barra do Safari)</span>
+                      <span className="text-xs">{isiOSNotSafari ? 'Cole o link na barra do Safari' : '(ícone na barra do Safari)'}</span>
                     </div>
                   </div>
                 </div>
@@ -82,10 +108,12 @@ const PWAInstallBanner = () => {
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">2</div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Role e toque em <strong>"Adicionar à Tela de Início"</strong></p>
+                    <p className="text-sm font-medium">
+                      {isiOSNotSafari ? <>Toque no botão <strong>Compartilhar</strong> do Safari</> : <>Role e toque em <strong>"Adicionar à Tela de Início"</strong></>}
+                    </p>
                     <div className="flex items-center gap-1 mt-1 text-muted-foreground">
-                      <Plus className="h-5 w-5" />
-                      <span className="text-xs">Add to Home Screen</span>
+                      {isiOSNotSafari ? <Share className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                      <span className="text-xs">{isiOSNotSafari ? '(ícone na barra inferior)' : 'Add to Home Screen'}</span>
                     </div>
                   </div>
                 </div>
@@ -93,14 +121,20 @@ const PWAInstallBanner = () => {
                 <div className="flex items-start gap-3">
                   <div className="bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">3</div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Toque em <strong>"Adicionar"</strong></p>
-                    <p className="text-xs text-muted-foreground mt-1">Pronto! O app aparecerá na sua tela inicial</p>
+                    <p className="text-sm font-medium">
+                      {isiOSNotSafari ? <>Toque em <strong>"Adicionar à Tela de Início"</strong></> : <>Toque em <strong>"Adicionar"</strong></>}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {isiOSNotSafari ? 'E depois em "Adicionar"' : 'Pronto! O app aparecerá na sua tela inicial'}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="mt-5 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground text-center">Use o Safari para instalar. Não funciona no Chrome do iPhone.</p>
+                <p className="text-xs text-muted-foreground text-center">
+                  {isiOSNotSafari ? '🔴 Instalação só funciona pelo Safari no iPhone' : 'Pronto! O app ficará na sua tela inicial'}
+                </p>
               </div>
             </div>
           </div>
