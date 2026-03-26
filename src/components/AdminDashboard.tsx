@@ -6,7 +6,7 @@ import { Profile, Delivery } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock, MapPin,
-  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2
+  UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +14,16 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock';
+
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  stock: number;
+  cost_price: number;
+  sale_price: number;
+}
 
 const statusConfig = {
   pending: { label: 'Pendente', icon: Clock, color: 'bg-muted text-muted-foreground' },
@@ -33,6 +42,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [creating, setCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stockSearch, setStockSearch] = useState('');
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -42,12 +53,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   const fetchData = async () => {
-    const [{ data: profiles }, { data: dels }] = await Promise.all([
+    const [{ data: profiles }, { data: dels }, { data: prods }] = await Promise.all([
       supabase.from('profiles').select('*').eq('role', 'employee'),
       supabase.from('deliveries').select('*, delivery_items(*)').order('created_at', { ascending: false }),
+      supabase.from('products').select('*').order('name'),
     ]);
     setEmployees((profiles as Profile[]) || []);
     setDeliveries((dels as Delivery[]) || []);
+    setProducts((prods as Product[]) || []);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -123,6 +136,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const tabs: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
+    { key: 'stock', label: 'Estoque', icon: BoxesIcon },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
   ];
@@ -310,6 +324,44 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                   </div>
                 );
               })}
+            </div>
+          </>
+        )}
+
+        {tab === 'stock' && (
+          <>
+            <div>
+              <h1 className="text-xl font-bold">Estoque</h1>
+              <p className="text-sm text-muted-foreground">{products.length} produtos cadastrados</p>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Buscar produto..."
+                value={stockSearch}
+                onChange={(e) => setStockSearch(e.target.value)}
+                className="h-11 rounded-full pl-10 bg-secondary border-0"
+              />
+            </div>
+
+            <div className="space-y-2">
+              {products
+                .filter(p => p.name.toLowerCase().includes(stockSearch.toLowerCase()) || p.code.includes(stockSearch))
+                .map(product => (
+                  <div key={product.id} className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-sm font-bold ${product.stock < 0 ? 'text-destructive' : product.stock === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {product.stock}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">R$ {Number(product.sale_price).toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
             </div>
           </>
         )}
