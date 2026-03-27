@@ -542,8 +542,13 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                       </div>
                     )}
                     {delivery.status === 'delivered' && delivery.completed_at && (
-                      <div className="text-center text-xs text-muted-foreground">
-                        ✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}
+                      <div className="text-center text-xs text-muted-foreground space-y-1">
+                        <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
+                        {delivery.payment_method && (
+                          <p className="font-medium">
+                            💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : 'PIX'}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
