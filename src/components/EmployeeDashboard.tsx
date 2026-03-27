@@ -482,12 +482,63 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                           delivery={delivery}
                           employeeName={profile.name}
                         />
-                        <Button
-                          onClick={() => handleStatusChange(delivery.id, 'delivered')}
-                          className="w-full rounded-full h-11"
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
-                        </Button>
+                        {confirmingDeliveryId === delivery.id ? (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
+                                { key: 'cartao', label: 'Cartão', icon: CreditCard },
+                                { key: 'pix', label: 'PIX', icon: Smartphone },
+                              ].map(pm => {
+                                const Icon = pm.icon;
+                                const active = selectedPayment === pm.key;
+                                return (
+                                  <button
+                                    key={pm.key}
+                                    onClick={() => setSelectedPayment(pm.key)}
+                                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-colors text-xs font-medium ${
+                                      active
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-border bg-secondary text-muted-foreground'
+                                    }`}
+                                  >
+                                    <Icon className="w-5 h-5" />
+                                    {pm.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => {
+                                  if (!selectedPayment) {
+                                    toast.error('Selecione a forma de pagamento');
+                                    return;
+                                  }
+                                  handleStatusChange(delivery.id, 'delivered', selectedPayment);
+                                }}
+                                className="flex-1 rounded-full h-11"
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); }}
+                                className="rounded-full h-11"
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => setConfirmingDeliveryId(delivery.id)}
+                            className="w-full rounded-full h-11"
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
+                          </Button>
+                        )}
                       </div>
                     )}
                     {delivery.status === 'delivered' && delivery.completed_at && (
