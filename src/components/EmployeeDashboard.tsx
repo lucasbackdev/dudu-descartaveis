@@ -8,7 +8,7 @@ import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
   ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
-  WifiOff, Loader2, CloudUpload, RotateCw
+  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
@@ -41,6 +41,8 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isOnline, pendingCount, syncing, refreshPendingCount } = useOnlineStatus();
+  const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
 
   // New delivery form
   const [client, setClient] = useState('');
@@ -119,23 +121,27 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     toast.success('Dados atualizados!');
   };
 
-  const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
+  const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string) => {
     const updates: any = { status: newStatus };
-    if (newStatus === 'delivered') updates.completed_at = new Date().toISOString();
+    if (newStatus === 'delivered') {
+      updates.completed_at = new Date().toISOString();
+      if (paymentMethod) updates.payment_method = paymentMethod;
+    }
 
     if (!navigator.onLine) {
       addPendingOperation({
         type: 'status_update',
-        payload: { id, status: newStatus, completed_at: updates.completed_at },
+        payload: { id, status: newStatus, completed_at: updates.completed_at, payment_method: updates.payment_method },
       });
       refreshPendingCount();
-      // Update locally for immediate feedback
       setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
       toast.info('Sem conexão. A atualização será enviada quando a internet voltar.');
       return;
     }
 
     await supabase.from('deliveries').update(updates).eq('id', id);
+    setConfirmingDeliveryId(null);
+    setSelectedPayment(null);
     fetchDeliveries();
   };
 
@@ -476,17 +482,73 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                           delivery={delivery}
                           employeeName={profile.name}
                         />
-                        <Button
-                          onClick={() => handleStatusChange(delivery.id, 'delivered')}
-                          className="w-full rounded-full h-11"
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
-                        </Button>
+                        {confirmingDeliveryId === delivery.id ? (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
+                                { key: 'cartao', label: 'Cartão', icon: CreditCard },
+                                { key: 'pix', label: 'PIX', icon: Smartphone },
+                              ].map(pm => {
+                                const Icon = pm.icon;
+                                const active = selectedPayment === pm.key;
+                                return (
+                                  <button
+                                    key={pm.key}
+                                    onClick={() => setSelectedPayment(pm.key)}
+                                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-colors text-xs font-medium ${
+                                      active
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-border bg-secondary text-muted-foreground'
+                                    }`}
+                                  >
+                                    <Icon className="w-5 h-5" />
+                                    {pm.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => {
+                                  if (!selectedPayment) {
+                                    toast.error('Selecione a forma de pagamento');
+                                    return;
+                                  }
+                                  handleStatusChange(delivery.id, 'delivered', selectedPayment);
+                                }}
+                                className="flex-1 rounded-full h-11"
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); }}
+                                className="rounded-full h-11"
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => setConfirmingDeliveryId(delivery.id)}
+                            className="w-full rounded-full h-11"
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
+                          </Button>
+                        )}
                       </div>
                     )}
                     {delivery.status === 'delivered' && delivery.completed_at && (
-                      <div className="text-center text-xs text-muted-foreground">
-                        ✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}
+                      <div className="text-center text-xs text-muted-foreground space-y-1">
+                        <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
+                        {delivery.payment_method && (
+                          <p className="font-medium">
+                            💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : 'PIX'}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

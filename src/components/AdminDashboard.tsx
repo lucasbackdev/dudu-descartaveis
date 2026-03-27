@@ -579,6 +579,13 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                                       <p className="text-xs text-muted-foreground">📝 {delivery.notes}</p>
                                     </div>
                                   )}
+                                  {delivery.payment_method && (
+                                    <div className="bg-background rounded-lg p-2">
+                                      <p className="text-xs font-medium">
+                                        💳 Pagamento: {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : 'PIX'}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
