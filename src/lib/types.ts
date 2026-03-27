@@ -44,6 +44,7 @@ export interface Delivery {
   notes: string;
   created_at: string;
   completed_at?: string;
+  payment_method?: string | null;
   delivery_items?: DeliveryItem[];
 }
 

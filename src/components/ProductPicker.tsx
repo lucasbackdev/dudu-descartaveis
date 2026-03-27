@@ -85,10 +85,10 @@ const ProductPicker = ({ value, onChange }: ProductPickerProps) => {
                   setSearch(p.name);
                   setShowDropdown(false);
                 }}
-                className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors flex items-center justify-between text-sm"
+                className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors text-sm"
               >
-                <span className="truncate">{p.name}</span>
-                <span className="text-xs text-muted-foreground shrink-0 ml-2">Cód: {p.code}</span>
+                <span className="block break-words leading-snug">{p.name}</span>
+                <span className="text-[10px] text-muted-foreground">Cód: {p.code}</span>
               </button>
             ))
           )}

@@ -48,6 +48,7 @@ export type Database = {
           employee_name: string
           id: string
           notes: string | null
+          payment_method: string | null
           status: string
         }
         Insert: {
@@ -59,6 +60,7 @@ export type Database = {
           employee_name: string
           id?: string
           notes?: string | null
+          payment_method?: string | null
           status?: string
         }
         Update: {
@@ -70,6 +72,7 @@ export type Database = {
           employee_name?: string
           id?: string
           notes?: string | null
+          payment_method?: string | null
           status?: string
         }
         Relationships: []
