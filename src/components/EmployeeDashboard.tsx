@@ -8,7 +8,7 @@ import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
   ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
-  WifiOff, Loader2, CloudUpload, RotateCw
+  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
@@ -41,6 +41,8 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isOnline, pendingCount, syncing, refreshPendingCount } = useOnlineStatus();
+  const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
 
   // New delivery form
   const [client, setClient] = useState('');
@@ -119,23 +121,27 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     toast.success('Dados atualizados!');
   };
 
-  const handleStatusChange = async (id: string, newStatus: Delivery['status']) => {
+  const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string) => {
     const updates: any = { status: newStatus };
-    if (newStatus === 'delivered') updates.completed_at = new Date().toISOString();
+    if (newStatus === 'delivered') {
+      updates.completed_at = new Date().toISOString();
+      if (paymentMethod) updates.payment_method = paymentMethod;
+    }
 
     if (!navigator.onLine) {
       addPendingOperation({
         type: 'status_update',
-        payload: { id, status: newStatus, completed_at: updates.completed_at },
+        payload: { id, status: newStatus, completed_at: updates.completed_at, payment_method: updates.payment_method },
       });
       refreshPendingCount();
-      // Update locally for immediate feedback
       setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
       toast.info('Sem conexão. A atualização será enviada quando a internet voltar.');
       return;
     }
 
     await supabase.from('deliveries').update(updates).eq('id', id);
+    setConfirmingDeliveryId(null);
+    setSelectedPayment(null);
     fetchDeliveries();
   };
 
