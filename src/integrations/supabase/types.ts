@@ -38,6 +38,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_access_control: {
+        Row: {
+          id: boolean
+          locked: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          locked?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          locked?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deliveries: {
         Row: {
           address: string
@@ -206,6 +224,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_app_unlocked: { Args: never; Returns: boolean }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
