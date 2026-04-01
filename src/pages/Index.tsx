@@ -32,7 +32,7 @@ function restoreCachedProfile() {
   return getCachedProfile();
 }
 
-const APP_LOCKED = true; // SET TO false TO UNLOCK ACCESS
+const APP_LOCKED = false; // SET TO true TO LOCK ACCESS
 
 const Index = () => {
   const initialCachedProfile = restoreCachedProfile();
