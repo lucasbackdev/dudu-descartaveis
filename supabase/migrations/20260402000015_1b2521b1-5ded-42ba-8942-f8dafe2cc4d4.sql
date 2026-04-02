@@ -1,0 +1,1 @@
+UPDATE app_access_control SET locked = false, updated_at = now() WHERE id = true;
