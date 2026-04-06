@@ -206,15 +206,22 @@ export function buildReceipt(data: ReceiptData): { getBytes: () => Promise<numbe
 
 // Known Bluetooth service UUIDs for thermal printers
 const PRINTER_SERVICE_UUIDS = [
-  '000018f0-0000-1000-8000-00805f9b34fb',
-  '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '000018f0-0000-1000-8000-00805f9b34fb',  // Generic printer
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455',  // ISSC/Microchip
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',  // Nordic UART
+  '0000ff00-0000-1000-8000-00805f9b34fb',  // Many Chinese printers
+  '0000ffe0-0000-1000-8000-00805f9b34fb',  // HM-10/CC254x modules
+  '0000fee7-0000-1000-8000-00805f9b34fb',  // Tencent/misc
+  '00001101-0000-1000-8000-00805f9b34fb',  // SPP
 ];
 
 const PRINTER_CHAR_UUIDS = [
   '00002af1-0000-1000-8000-00805f9b34fb',
   '49535343-8841-43f4-a8d4-ecbe34729bb3',
   'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f',
+  '0000ff02-0000-1000-8000-00805f9b34fb',  // Many Chinese printers write char
+  '0000ffe1-0000-1000-8000-00805f9b34fb',  // HM-10 char
+  '0000fee8-0000-1000-8000-00805f9b34fb',
 ];
 
 export async function printViaBluetoothWithDevice(device: any, receiptBytes: number[]): Promise<void> {
@@ -226,21 +233,39 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
   }
 
   // Web Bluetooth path
-  if (!device.gatt) throw new Error('GATT não disponível');
+  if (!device.gatt) throw new Error('GATT não disponível neste dispositivo');
 
+  console.log('[Printer] Connecting to GATT server...');
   const server = await device.gatt.connect();
+  console.log('[Printer] Connected to GATT server');
 
   let writeChar: any = null;
 
+  // 1. Try known service + characteristic combos
   for (const svcUuid of PRINTER_SERVICE_UUIDS) {
     try {
       const service = await server.getPrimaryService(svcUuid);
+      console.log('[Printer] Found service:', svcUuid);
       for (const charUuid of PRINTER_CHAR_UUIDS) {
         try {
           const char = await service.getCharacteristic(charUuid);
           if (char.properties.write || char.properties.writeWithoutResponse) {
             writeChar = char;
+            console.log('[Printer] Found writable characteristic:', charUuid);
             break;
+          }
+        } catch {}
+      }
+      if (!writeChar) {
+        // Try all characteristics in this service
+        try {
+          const chars = await service.getCharacteristics();
+          for (const char of chars) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              writeChar = char;
+              console.log('[Printer] Found writable char via enumeration:', char.uuid);
+              break;
+            }
           }
         } catch {}
       }
@@ -248,27 +273,40 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
     } catch {}
   }
 
+  // 2. If still not found, try to get ALL services (requires acceptAllDevices)
   if (!writeChar) {
-    for (const svcUuid of PRINTER_SERVICE_UUIDS) {
-      try {
-        const service = await server.getPrimaryService(svcUuid);
-        const chars = await service.getCharacteristics();
-        for (const char of chars) {
-          if (char.properties.write || char.properties.writeWithoutResponse) {
-            writeChar = char;
-            break;
+    console.log('[Printer] Known UUIDs failed, trying to enumerate all services...');
+    try {
+      const services = await server.getPrimaryServices();
+      console.log('[Printer] Found', services.length, 'services');
+      for (const service of services) {
+        console.log('[Printer] Service:', service.uuid);
+        try {
+          const chars = await service.getCharacteristics();
+          for (const char of chars) {
+            console.log('[Printer] Char:', char.uuid, 'write:', char.properties.write, 'writeNoResp:', char.properties.writeWithoutResponse);
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              writeChar = char;
+              console.log('[Printer] Using writable char:', char.uuid, 'from service:', service.uuid);
+              break;
+            }
           }
+        } catch (e) {
+          console.warn('[Printer] Could not get chars for service:', service.uuid, e);
         }
         if (writeChar) break;
-      } catch {}
+      }
+    } catch (e) {
+      console.warn('[Printer] Could not enumerate services:', e);
     }
   }
 
   if (!writeChar) {
     server.disconnect();
-    throw new Error('Não foi possível encontrar a característica de escrita da impressora');
+    throw new Error('Não foi possível encontrar a característica de escrita da impressora. Verifique se a impressora está ligada e em modo de pareamento.');
   }
 
+  console.log('[Printer] Sending', receiptBytes.length, 'bytes...');
   const chunkSize = 100;
   const data = new Uint8Array(receiptBytes);
 
@@ -279,8 +317,9 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
     } else {
       await writeChar.writeValue(chunk);
     }
-    await new Promise(r => setTimeout(r, 20));
+    await new Promise(r => setTimeout(r, 30));
   }
 
+  console.log('[Printer] Done sending data');
   server.disconnect();
 }
