@@ -45,6 +45,7 @@ export interface Delivery {
   created_at: string;
   completed_at?: string;
   payment_method?: string | null;
+  payment_due_date?: string | null;
   delivery_items?: DeliveryItem[];
 }
 

@@ -52,6 +52,8 @@ interface ReceiptData {
   missingItems: MissingItem[];
   notes?: string;
   date: string;
+  paymentMethod?: string;
+  paymentDueDate?: string;
 }
 
 async function loadLogoAsRaster(): Promise<number[] | null> {
@@ -179,6 +181,18 @@ export function buildReceipt(data: ReceiptData): { getBytes: () => Promise<numbe
       bytes.push(...COMMANDS.NORMAL_SIZE);
       bytes.push(...COMMANDS.BOLD_OFF);
       bytes.push(...COMMANDS.ALIGN_LEFT);
+
+      // Payment method
+      if (data.paymentMethod) {
+        bytes.push(...separator());
+        bytes.push(...COMMANDS.BOLD_ON);
+        const pmLabel = data.paymentMethod === 'dinheiro' ? 'Dinheiro' : data.paymentMethod === 'cartao' ? 'Cartao' : data.paymentMethod === 'prazo' ? 'A Prazo' : 'PIX';
+        bytes.push(...line(`PAGAMENTO: ${pmLabel}`));
+        if (data.paymentMethod === 'prazo' && data.paymentDueDate) {
+          bytes.push(...line(`DATA PREVISTA: ${data.paymentDueDate}`));
+        }
+        bytes.push(...COMMANDS.BOLD_OFF);
+      }
 
       // Missing items
       if (data.missingItems.length > 0) {

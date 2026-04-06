@@ -66,6 +66,7 @@ export type Database = {
           employee_name: string
           id: string
           notes: string | null
+          payment_due_date: string | null
           payment_method: string | null
           status: string
         }
@@ -78,6 +79,7 @@ export type Database = {
           employee_name: string
           id?: string
           notes?: string | null
+          payment_due_date?: string | null
           payment_method?: string | null
           status?: string
         }
@@ -90,6 +92,7 @@ export type Database = {
           employee_name?: string
           id?: string
           notes?: string | null
+          payment_due_date?: string | null
           payment_method?: string | null
           status?: string
         }
