@@ -1,0 +1,1 @@
+ALTER TABLE public.deliveries ADD COLUMN payment_due_date date NULL;

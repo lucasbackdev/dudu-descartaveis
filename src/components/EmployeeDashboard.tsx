@@ -8,8 +8,12 @@ import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
   ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
-  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone
+  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone, CalendarDays
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -121,11 +125,14 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     toast.success('Dados atualizados!');
   };
 
-  const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string) => {
+  const [paymentDueDate, setPaymentDueDate] = useState<Date | undefined>();
+
+  const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string, dueDate?: Date) => {
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') {
       updates.completed_at = new Date().toISOString();
       if (paymentMethod) updates.payment_method = paymentMethod;
+      if (paymentMethod === 'prazo' && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
     }
 
     if (!navigator.onLine) {
@@ -142,6 +149,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     await supabase.from('deliveries').update(updates).eq('id', id);
     setConfirmingDeliveryId(null);
     setSelectedPayment(null);
+    setPaymentDueDate(undefined);
     fetchDeliveries();
   };
 
@@ -485,11 +493,12 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                         {confirmingDeliveryId === delivery.id ? (
                           <div className="space-y-3">
                             <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                               {[
                                 { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
                                 { key: 'cartao', label: 'Cartão', icon: CreditCard },
                                 { key: 'pix', label: 'PIX', icon: Smartphone },
+                                { key: 'prazo', label: 'A Prazo', icon: CalendarDays },
                               ].map(pm => {
                                 const Icon = pm.icon;
                                 const active = selectedPayment === pm.key;
@@ -509,6 +518,29 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                 );
                               })}
                             </div>
+                            {selectedPayment === 'prazo' && (
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold text-muted-foreground">Data de pagamento</p>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full rounded-full h-11 justify-start text-left font-normal">
+                                      <CalendarDays className="w-4 h-4 mr-2" />
+                                      {paymentDueDate ? format(paymentDueDate, "dd/MM/yyyy", { locale: ptBR }) : 'Selecione a data'}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={paymentDueDate}
+                                      onSelect={setPaymentDueDate}
+                                      disabled={(date) => date < new Date()}
+                                      initialFocus
+                                      className="p-3 pointer-events-auto"
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                            )}
                             <div className="flex gap-2">
                               <Button
                                 onClick={() => {
@@ -516,15 +548,19 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                     toast.error('Selecione a forma de pagamento');
                                     return;
                                   }
-                                  handleStatusChange(delivery.id, 'delivered', selectedPayment);
+                                  if (selectedPayment === 'prazo' && !paymentDueDate) {
+                                    toast.error('Selecione a data de pagamento');
+                                    return;
+                                  }
+                                  handleStatusChange(delivery.id, 'delivered', selectedPayment, paymentDueDate);
                                 }}
                                 className="flex-1 rounded-full h-11"
                               >
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
                               </Button>
                               <Button
-                                variant="outline"
-                                onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); }}
+                variant="outline"
+                onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); setPaymentDueDate(undefined); }}
                                 className="rounded-full h-11"
                               >
                                 Cancelar
@@ -546,7 +582,12 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                         <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
                         {delivery.payment_method && (
                           <p className="font-medium">
-                            💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : 'PIX'}
+                            💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : delivery.payment_method === 'prazo' ? 'A Prazo' : 'PIX'}
+                          </p>
+                        )}
+                        {delivery.payment_method === 'prazo' && delivery.payment_due_date && (
+                          <p className="font-medium">
+                            📅 Pagamento em: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         )}
                       </div>
