@@ -233,21 +233,39 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
   }
 
   // Web Bluetooth path
-  if (!device.gatt) throw new Error('GATT não disponível');
+  if (!device.gatt) throw new Error('GATT não disponível neste dispositivo');
 
+  console.log('[Printer] Connecting to GATT server...');
   const server = await device.gatt.connect();
+  console.log('[Printer] Connected to GATT server');
 
   let writeChar: any = null;
 
+  // 1. Try known service + characteristic combos
   for (const svcUuid of PRINTER_SERVICE_UUIDS) {
     try {
       const service = await server.getPrimaryService(svcUuid);
+      console.log('[Printer] Found service:', svcUuid);
       for (const charUuid of PRINTER_CHAR_UUIDS) {
         try {
           const char = await service.getCharacteristic(charUuid);
           if (char.properties.write || char.properties.writeWithoutResponse) {
             writeChar = char;
+            console.log('[Printer] Found writable characteristic:', charUuid);
             break;
+          }
+        } catch {}
+      }
+      if (!writeChar) {
+        // Try all characteristics in this service
+        try {
+          const chars = await service.getCharacteristics();
+          for (const char of chars) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              writeChar = char;
+              console.log('[Printer] Found writable char via enumeration:', char.uuid);
+              break;
+            }
           }
         } catch {}
       }
@@ -255,27 +273,40 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
     } catch {}
   }
 
+  // 2. If still not found, try to get ALL services (requires acceptAllDevices)
   if (!writeChar) {
-    for (const svcUuid of PRINTER_SERVICE_UUIDS) {
-      try {
-        const service = await server.getPrimaryService(svcUuid);
-        const chars = await service.getCharacteristics();
-        for (const char of chars) {
-          if (char.properties.write || char.properties.writeWithoutResponse) {
-            writeChar = char;
-            break;
+    console.log('[Printer] Known UUIDs failed, trying to enumerate all services...');
+    try {
+      const services = await server.getPrimaryServices();
+      console.log('[Printer] Found', services.length, 'services');
+      for (const service of services) {
+        console.log('[Printer] Service:', service.uuid);
+        try {
+          const chars = await service.getCharacteristics();
+          for (const char of chars) {
+            console.log('[Printer] Char:', char.uuid, 'write:', char.properties.write, 'writeNoResp:', char.properties.writeWithoutResponse);
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              writeChar = char;
+              console.log('[Printer] Using writable char:', char.uuid, 'from service:', service.uuid);
+              break;
+            }
           }
+        } catch (e) {
+          console.warn('[Printer] Could not get chars for service:', service.uuid, e);
         }
         if (writeChar) break;
-      } catch {}
+      }
+    } catch (e) {
+      console.warn('[Printer] Could not enumerate services:', e);
     }
   }
 
   if (!writeChar) {
     server.disconnect();
-    throw new Error('Não foi possível encontrar a característica de escrita da impressora');
+    throw new Error('Não foi possível encontrar a característica de escrita da impressora. Verifique se a impressora está ligada e em modo de pareamento.');
   }
 
+  console.log('[Printer] Sending', receiptBytes.length, 'bytes...');
   const chunkSize = 100;
   const data = new Uint8Array(receiptBytes);
 
@@ -286,8 +317,9 @@ export async function printViaBluetoothWithDevice(device: any, receiptBytes: num
     } else {
       await writeChar.writeValue(chunk);
     }
-    await new Promise(r => setTimeout(r, 20));
+    await new Promise(r => setTimeout(r, 30));
   }
 
+  console.log('[Printer] Done sending data');
   server.disconnect();
 }
