@@ -50,6 +50,8 @@ const DeliveryReceiptPrint = ({ delivery, employeeName, onPrintComplete }: Deliv
       missingItems: missing,
       notes: delivery.notes || undefined,
       date: new Date().toLocaleString('pt-BR'),
+      paymentMethod: delivery.payment_method || undefined,
+      paymentDueDate: delivery.payment_due_date ? new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : undefined,
     });
 
     const bytes = await receipt.getBytes();
