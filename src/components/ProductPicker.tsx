@@ -48,7 +48,7 @@ const ProductPicker = ({ value, onChange }: ProductPickerProps) => {
   ).slice(0, 20);
 
   return (
-    <div ref={wrapperRef} className="relative flex-1">
+    <div ref={wrapperRef} className="relative flex-1 min-w-0 w-full">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
@@ -60,7 +60,7 @@ const ProductPicker = ({ value, onChange }: ProductPickerProps) => {
             if (!e.target.value) onChange('');
           }}
           onFocus={() => setShowDropdown(true)}
-          className="h-10 rounded-full pl-9 pr-8 bg-secondary border-0"
+          className="h-10 rounded-full pl-9 pr-8 bg-secondary border-0 w-full"
         />
         {search && (
           <button
