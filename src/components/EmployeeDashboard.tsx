@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ProductPicker from '@/components/ProductPicker';
 import DeliveryReceiptPrint from '@/components/DeliveryReceiptPrint';
+import DebtorSearch from '@/components/DebtorSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
