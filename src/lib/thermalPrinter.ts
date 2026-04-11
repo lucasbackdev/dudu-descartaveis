@@ -186,10 +186,10 @@ export function buildReceipt(data: ReceiptData): { getBytes: () => Promise<numbe
       if (data.paymentMethod) {
         bytes.push(...separator());
         bytes.push(...COMMANDS.BOLD_ON);
-        const pmLabel = data.paymentMethod === 'dinheiro' ? 'Dinheiro' : data.paymentMethod === 'cartao' ? 'Cartao' : data.paymentMethod === 'prazo' ? 'A Prazo' : 'PIX';
+        const pmLabel = data.paymentMethod === 'dinheiro' ? 'Dinheiro' : data.paymentMethod === 'cartao' ? 'Cartao' : data.paymentMethod === 'prazo' ? 'A Prazo' : data.paymentMethod === 'boleto' ? 'Boleto' : 'PIX';
         bytes.push(...line(`PAGAMENTO: ${pmLabel}`));
-        if (data.paymentMethod === 'prazo' && data.paymentDueDate) {
-          bytes.push(...line(`DATA PREVISTA: ${data.paymentDueDate}`));
+        if ((data.paymentMethod === 'prazo' || data.paymentMethod === 'boleto') && data.paymentDueDate) {
+          bytes.push(...line(`VENCIMENTO: ${data.paymentDueDate}`));
         }
         bytes.push(...COMMANDS.BOLD_OFF);
       }

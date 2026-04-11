@@ -132,7 +132,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     if (newStatus === 'delivered') {
       updates.completed_at = new Date().toISOString();
       if (paymentMethod) updates.payment_method = paymentMethod;
-      if (paymentMethod === 'prazo' && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
+      if ((paymentMethod === 'prazo' || paymentMethod === 'boleto') && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
     }
 
     if (!navigator.onLine) {
