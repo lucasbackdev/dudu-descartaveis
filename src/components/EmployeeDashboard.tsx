@@ -368,27 +368,29 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 mb-2 flex-wrap">
-                  <ProductPicker
-                    value={item.name}
-                    onChange={(name) => updateItem(idx, 'name', name)}
-                  />
+                <div key={idx} className="flex gap-2 mb-2 items-center">
+                  <div className="flex-1 min-w-0">
+                    <ProductPicker
+                      value={item.name}
+                      onChange={(name) => updateItem(idx, 'name', name)}
+                    />
+                  </div>
                   <Input
                     placeholder="Qtd"
                     type="number"
                     min="1"
                     value={item.quantity}
                     onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 w-20"
+                    className="h-10 rounded-full px-4 bg-secondary border-0 w-16 shrink-0"
                   />
                   <Input
-                    placeholder="R$ Valor"
+                    placeholder="R$"
                     type="number"
                     min="0"
                     step="0.01"
                     value={item.sale_price}
                     onChange={(e) => updateItem(idx, 'sale_price', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 w-28"
+                    className="h-10 rounded-full px-4 bg-secondary border-0 w-24 shrink-0"
                   />
                   {items.length > 1 && (
                     <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
