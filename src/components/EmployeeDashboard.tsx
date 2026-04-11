@@ -429,6 +429,9 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
           ))}
         </div>
 
+        {/* Debtors from previous weeks */}
+        <DebtorSearch employeeId={profile.id} />
+
         <div className="space-y-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Minhas Entregas</h2>
           {deliveries.length === 0 && (
