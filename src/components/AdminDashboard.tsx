@@ -582,11 +582,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                                   {delivery.payment_method && (
                                     <div className="bg-background rounded-lg p-2">
                                       <p className="text-xs font-medium">
-                                        💳 Pagamento: {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : delivery.payment_method === 'prazo' ? 'A Prazo' : 'PIX'}
+                                        💳 Pagamento: {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : delivery.payment_method === 'prazo' ? 'A Prazo' : delivery.payment_method === 'boleto' ? 'Boleto' : 'PIX'}
                                       </p>
-                                      {delivery.payment_method === 'prazo' && delivery.payment_due_date && (
+                                      {(delivery.payment_method === 'prazo' || delivery.payment_method === 'boleto') && delivery.payment_due_date && (
                                         <p className="text-xs text-muted-foreground mt-1">
-                                          📅 Data prevista: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                          📅 Vencimento: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                                         </p>
                                       )}
                                     </div>
