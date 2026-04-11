@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ProductPicker from '@/components/ProductPicker';
 import DeliveryReceiptPrint from '@/components/DeliveryReceiptPrint';
+import DebtorSearch from '@/components/DebtorSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +9,7 @@ import { Profile, Delivery } from '@/lib/types';
 import {
   Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
   ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
-  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone, CalendarDays
+  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone, CalendarDays, FileText, Search
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -132,7 +133,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     if (newStatus === 'delivered') {
       updates.completed_at = new Date().toISOString();
       if (paymentMethod) updates.payment_method = paymentMethod;
-      if (paymentMethod === 'prazo' && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
+      if ((paymentMethod === 'prazo' || paymentMethod === 'boleto') && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
     }
 
     if (!navigator.onLine) {
@@ -368,27 +369,29 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 mb-2 flex-wrap">
-                  <ProductPicker
-                    value={item.name}
-                    onChange={(name) => updateItem(idx, 'name', name)}
-                  />
+                <div key={idx} className="flex gap-2 mb-2 items-center">
+                  <div className="flex-1 min-w-0">
+                    <ProductPicker
+                      value={item.name}
+                      onChange={(name) => updateItem(idx, 'name', name)}
+                    />
+                  </div>
                   <Input
                     placeholder="Qtd"
                     type="number"
                     min="1"
                     value={item.quantity}
                     onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 w-20"
+                    className="h-10 rounded-full px-4 bg-secondary border-0 w-16 shrink-0"
                   />
                   <Input
-                    placeholder="R$ Valor"
+                    placeholder="R$"
                     type="number"
                     min="0"
                     step="0.01"
                     value={item.sale_price}
                     onChange={(e) => updateItem(idx, 'sale_price', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 w-28"
+                    className="h-10 rounded-full px-4 bg-secondary border-0 w-24 shrink-0"
                   />
                   {items.length > 1 && (
                     <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
@@ -426,6 +429,9 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             </div>
           ))}
         </div>
+
+        {/* Debtors from previous weeks */}
+        <DebtorSearch employeeId={profile.id} />
 
         <div className="space-y-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Minhas Entregas</h2>
@@ -486,19 +492,16 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                     )}
                     {delivery.status === 'in_transit' && (
                       <div className="space-y-3">
-                        <DeliveryReceiptPrint
-                          delivery={delivery}
-                          employeeName={profile.name}
-                        />
                         {confirmingDeliveryId === delivery.id ? (
                           <div className="space-y-3">
                             <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               {[
                                 { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
                                 { key: 'cartao', label: 'Cartão', icon: CreditCard },
                                 { key: 'pix', label: 'PIX', icon: Smartphone },
                                 { key: 'prazo', label: 'A Prazo', icon: CalendarDays },
+                                { key: 'boleto', label: 'Boleto', icon: FileText },
                               ].map(pm => {
                                 const Icon = pm.icon;
                                 const active = selectedPayment === pm.key;
@@ -518,9 +521,11 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                 );
                               })}
                             </div>
-                            {selectedPayment === 'prazo' && (
+                            {(selectedPayment === 'prazo' || selectedPayment === 'boleto') && (
                               <div className="space-y-2">
-                                <p className="text-xs font-semibold text-muted-foreground">Data de pagamento</p>
+                                <p className="text-xs font-semibold text-muted-foreground">
+                                  {selectedPayment === 'boleto' ? 'Data de vencimento do boleto' : 'Data de pagamento'}
+                                </p>
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <Button variant="outline" className="w-full rounded-full h-11 justify-start text-left font-normal">
@@ -548,8 +553,8 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                     toast.error('Selecione a forma de pagamento');
                                     return;
                                   }
-                                  if (selectedPayment === 'prazo' && !paymentDueDate) {
-                                    toast.error('Selecione a data de pagamento');
+                                  if ((selectedPayment === 'prazo' || selectedPayment === 'boleto') && !paymentDueDate) {
+                                    toast.error('Selecione a data de vencimento');
                                     return;
                                   }
                                   handleStatusChange(delivery.id, 'delivered', selectedPayment, paymentDueDate);
@@ -578,18 +583,24 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                       </div>
                     )}
                     {delivery.status === 'delivered' && delivery.completed_at && (
-                      <div className="text-center text-xs text-muted-foreground space-y-1">
-                        <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
-                        {delivery.payment_method && (
-                          <p className="font-medium">
-                            💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : delivery.payment_method === 'prazo' ? 'A Prazo' : 'PIX'}
-                          </p>
-                        )}
-                        {delivery.payment_method === 'prazo' && delivery.payment_due_date && (
-                          <p className="font-medium">
-                            📅 Pagamento em: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                          </p>
-                        )}
+                      <div className="space-y-3">
+                        <div className="text-center text-xs text-muted-foreground space-y-1">
+                          <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
+                          {delivery.payment_method && (
+                            <p className="font-medium">
+                              💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : delivery.payment_method === 'prazo' ? 'A Prazo' : delivery.payment_method === 'boleto' ? 'Boleto' : 'PIX'}
+                            </p>
+                          )}
+                          {(delivery.payment_method === 'prazo' || delivery.payment_method === 'boleto') && delivery.payment_due_date && (
+                            <p className="font-medium">
+                              📅 Vencimento: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                            </p>
+                          )}
+                        </div>
+                        <DeliveryReceiptPrint
+                          delivery={delivery}
+                          employeeName={profile.name}
+                        />
                       </div>
                     )}
                   </div>
