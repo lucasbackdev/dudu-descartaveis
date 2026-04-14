@@ -46,7 +46,7 @@ interface MissingItem {
 
 interface ReceiptData {
   client: string;
-  address: string;
+  address?: string;
   employeeName: string;
   items: ReceiptItem[];
   missingItems: MissingItem[];
@@ -150,7 +150,7 @@ export function buildReceipt(data: ReceiptData): { getBytes: () => Promise<numbe
       bytes.push(...COMMANDS.BOLD_ON);
       bytes.push(...line(`Cliente: ${data.client}`));
       bytes.push(...COMMANDS.BOLD_OFF);
-      bytes.push(...line(`Endereco: ${data.address}`));
+      if (data.address) bytes.push(...line(`Endereco: ${data.address}`));
       bytes.push(...line(`Entregador: ${data.employeeName}`));
       if (data.notes) {
         bytes.push(...line(`Obs: ${data.notes}`));

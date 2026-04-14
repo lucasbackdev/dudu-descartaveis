@@ -56,6 +56,33 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          cnpj_cpf: string
+          created_at: string
+          id: string
+          name: string
+          razao_social: string
+          telefone: string
+        }
+        Insert: {
+          cnpj_cpf?: string
+          created_at?: string
+          id?: string
+          name: string
+          razao_social?: string
+          telefone?: string
+        }
+        Update: {
+          cnpj_cpf?: string
+          created_at?: string
+          id?: string
+          name?: string
+          razao_social?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
       deliveries: {
         Row: {
           address: string
@@ -66,12 +93,13 @@ export type Database = {
           employee_name: string
           id: string
           notes: string | null
+          paid: boolean
           payment_due_date: string | null
           payment_method: string | null
           status: string
         }
         Insert: {
-          address: string
+          address?: string
           client: string
           completed_at?: string | null
           created_at?: string
@@ -79,6 +107,7 @@ export type Database = {
           employee_name: string
           id?: string
           notes?: string | null
+          paid?: boolean
           payment_due_date?: string | null
           payment_method?: string | null
           status?: string
@@ -92,6 +121,7 @@ export type Database = {
           employee_name?: string
           id?: string
           notes?: string | null
+          paid?: boolean
           payment_due_date?: string | null
           payment_method?: string | null
           status?: string

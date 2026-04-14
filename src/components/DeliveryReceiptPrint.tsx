@@ -44,7 +44,6 @@ const DeliveryReceiptPrint = ({ delivery, employeeName, onPrintComplete }: Deliv
 
     const receipt = buildReceipt({
       client: delivery.client,
-      address: delivery.address,
       employeeName,
       items,
       missingItems: missing,
