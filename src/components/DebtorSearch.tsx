@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 interface DebtorDelivery {
   id: string;
   client: string;
-  address: string;
   payment_method: string;
   payment_due_date: string;
   completed_at: string;
@@ -25,7 +24,7 @@ const DebtorSearch = ({ employeeId }: { employeeId: string }) => {
 
     const { data } = await supabase
       .from('deliveries')
-      .select('id, client, address, payment_method, payment_due_date, completed_at')
+      .select('id, client, payment_method, payment_due_date, completed_at')
       .eq('employee_id', employeeId)
       .eq('status', 'delivered')
       .in('payment_method', ['prazo', 'boleto'])
@@ -82,7 +81,7 @@ const DebtorSearch = ({ employeeId }: { employeeId: string }) => {
               {filtered.map(d => (
                 <div key={d.id} className="bg-secondary rounded-xl p-3 space-y-1">
                   <p className="text-sm font-semibold">{d.client}</p>
-                  <p className="text-xs text-muted-foreground">{d.address}</p>
+                  
                   <div className="flex gap-3 text-xs">
                     <span className="text-destructive font-medium">
                       📅 Venceu: {new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
