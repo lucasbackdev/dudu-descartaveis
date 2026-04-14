@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import ProductPicker from '@/components/ProductPicker';
+import ClientPicker from '@/components/ClientPicker';
 import DeliveryReceiptPrint from '@/components/DeliveryReceiptPrint';
 import DebtorSearch from '@/components/DebtorSearch';
 import { Button } from '@/components/ui/button';
@@ -7,16 +8,15 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile, Delivery } from '@/lib/types';
 import {
-  Package, LogOut, MapPin, Clock, CheckCircle2, Truck,
+  Package, LogOut, Clock, CheckCircle2, Truck,
   ChevronRight, ChevronDown, Plus, Trash2, Send, Camera,
-  WifiOff, Loader2, CloudUpload, RotateCw, CreditCard, Banknote, Smartphone, CalendarDays, FileText, Search
+  Loader2, RotateCw, CreditCard, Banknote, Smartphone, CalendarDays, FileText, Edit2, X, Download
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface EmployeeDashboardProps {
@@ -36,6 +36,60 @@ interface NewItem {
   sale_price: string;
 }
 
+const paymentMethods = [
+  { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
+  { key: 'cartao', label: 'Cartão', icon: CreditCard },
+  { key: 'pix', label: 'PIX', icon: Smartphone },
+  { key: 'prazo', label: 'A Prazo', icon: CalendarDays },
+  { key: 'boleto', label: 'Boleto', icon: FileText },
+];
+
+const paymentLabel = (method: string) => {
+  const found = paymentMethods.find(p => p.key === method);
+  return found ? found.label : method;
+};
+
+const getDeliveryTotal = (delivery: Delivery) => {
+  return (delivery.delivery_items || []).reduce((sum, item) => sum + (Number((item as any).sale_price) || 0) * item.quantity, 0);
+};
+
+const downloadReceipt = (delivery: Delivery, employeeName: string) => {
+  const items = delivery.delivery_items || [];
+  const total = getDeliveryTotal(delivery);
+  let text = `DUDU DESCARTÁVEIS\n`;
+  text += `${new Date(delivery.completed_at || delivery.created_at).toLocaleString('pt-BR')}\n`;
+  text += `────────────────────────────\n`;
+  text += `Cliente: ${delivery.client}\n`;
+  text += `Entregador: ${employeeName}\n`;
+  if (delivery.notes) text += `Obs: ${delivery.notes}\n`;
+  text += `────────────────────────────\n`;
+  text += `ITENS ENTREGUES\n`;
+  text += `────────────────────────────\n`;
+  for (const item of items) {
+    const price = Number((item as any).sale_price) || 0;
+    text += `${item.name}\n  ${item.quantity}x  R$ ${price.toFixed(2)}  = R$ ${(price * item.quantity).toFixed(2)}\n`;
+  }
+  text += `────────────────────────────\n`;
+  text += `TOTAL: R$ ${total.toFixed(2)}\n`;
+  if (delivery.payment_method) {
+    text += `────────────────────────────\n`;
+    text += `PAGAMENTO: ${paymentLabel(delivery.payment_method)}\n`;
+    if ((delivery.payment_method === 'prazo' || delivery.payment_method === 'boleto') && delivery.payment_due_date) {
+      text += `VENCIMENTO: ${new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}\n`;
+    }
+  }
+  text += `────────────────────────────\n`;
+  text += `Obrigado pela preferência!\nDudu Descartáveis\n`;
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `nota_${delivery.client.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -45,44 +99,33 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isOnline, pendingCount, syncing, refreshPendingCount } = useOnlineStatus();
+  const { isOnline } = useOnlineStatus();
   const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [editingDeliveryId, setEditingDeliveryId] = useState<string | null>(null);
+  const [editItems, setEditItems] = useState<NewItem[]>([]);
+  const [editNotes, setEditNotes] = useState('');
+  const [editPayment, setEditPayment] = useState<string | null>(null);
+  const [editDueDate, setEditDueDate] = useState<Date | undefined>();
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // New delivery form
   const [client, setClient] = useState('');
-  const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1', sale_price: '' }]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Selecione uma imagem válida');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 2MB');
-      return;
-    }
+    if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem válida'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 2MB'); return; }
 
     setUploadingAvatar(true);
     const filePath = `${profile.id}/avatar.${file.name.split('.').pop()}`;
-
-    // Remove old avatar if exists
     await supabase.storage.from('avatars').remove([filePath]);
-
     const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-    if (uploadError) {
-      toast.error('Erro ao enviar foto');
-      setUploadingAvatar(false);
-      return;
-    }
-
+    if (uploadError) { toast.error('Erro ao enviar foto'); setUploadingAvatar(false); return; }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
     await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
     setAvatarUrl(publicUrl + '?t=' + Date.now());
     setUploadingAvatar(false);
@@ -101,26 +144,8 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   useEffect(() => { fetchDeliveries(); }, [profile.id]);
 
   const handleRefresh = async () => {
-    if (!isOnline) {
-      toast.info('Sem conexão. Os dados pendentes serão enviados quando a internet voltar.');
-      return;
-    }
-
+    if (!isOnline) { toast.info('Sem conexão.'); return; }
     setRefreshing(true);
-
-    if (pendingCount > 0) {
-      const { synced, failed } = await syncPendingOperations();
-      refreshPendingCount();
-
-      if (synced > 0) {
-        toast.success(`${synced} operação(ões) sincronizada(s) com sucesso!`);
-      }
-
-      if (failed > 0) {
-        toast.error(`${failed} operação(ões) falharam ao sincronizar`);
-      }
-    }
-
     await fetchDeliveries();
     setRefreshing(false);
     toast.success('Dados atualizados!');
@@ -129,22 +154,13 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [paymentDueDate, setPaymentDueDate] = useState<Date | undefined>();
 
   const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string, dueDate?: Date) => {
+    if (!isOnline) { toast.error('Você precisa estar conectado à internet para registrar vendas.'); return; }
+
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') {
       updates.completed_at = new Date().toISOString();
       if (paymentMethod) updates.payment_method = paymentMethod;
       if ((paymentMethod === 'prazo' || paymentMethod === 'boleto') && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
-    }
-
-    if (!navigator.onLine) {
-      addPendingOperation({
-        type: 'status_update',
-        payload: { id, status: newStatus, completed_at: updates.completed_at, payment_method: updates.payment_method },
-      });
-      refreshPendingCount();
-      setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-      toast.info('Sem conexão. A atualização será enviada quando a internet voltar.');
-      return;
     }
 
     await supabase.from('deliveries').update(updates).eq('id', id);
@@ -164,22 +180,16 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
 
   const resetForm = () => {
     setClient('');
-    setAddress('');
     setNotes('');
     setItems([{ name: '', quantity: '1', sale_price: '' }]);
     setShowCreate(false);
   };
 
   const handleSubmitDelivery = async () => {
-    if (!client.trim() || !address.trim()) {
-      toast.error('Preencha o cliente e o endereço');
-      return;
-    }
+    if (!isOnline) { toast.error('Você precisa estar conectado à internet para registrar vendas.'); return; }
+    if (!client.trim()) { toast.error('Selecione um cliente'); return; }
     const validItems = items.filter(i => i.name.trim());
-    if (validItems.length === 0) {
-      toast.error('Adicione pelo menos um item');
-      return;
-    }
+    if (validItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
 
     setSending(true);
     const validItemsMapped = validItems.map(item => ({
@@ -192,22 +202,10 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       employee_id: profile.id,
       employee_name: profile.name,
       client: client.trim(),
-      address: address.trim(),
+      address: '',
       notes: notes.trim() || '',
       status: 'pending',
     };
-
-    if (!navigator.onLine) {
-      addPendingOperation({
-        type: 'create_delivery',
-        payload: { delivery: deliveryData, items: validItemsMapped },
-      });
-      refreshPendingCount();
-      setSending(false);
-      toast.info('Sem conexão. A entrega será enviada quando a internet voltar.');
-      resetForm();
-      return;
-    }
 
     const { data: delivery, error } = await supabase
       .from('deliveries')
@@ -215,30 +213,59 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       .select()
       .single();
 
-    if (error || !delivery) {
-      toast.error('Erro ao criar entrega');
-      setSending(false);
-      return;
-    }
+    if (error || !delivery) { toast.error('Erro ao criar entrega'); setSending(false); return; }
 
-    const itemsToInsert = validItemsMapped.map(item => ({
-      ...item,
-      delivery_id: delivery.id,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('delivery_items')
-      .insert(itemsToInsert);
+    await supabase.from('delivery_items').insert(
+      validItemsMapped.map(item => ({ ...item, delivery_id: delivery.id }))
+    );
 
     setSending(false);
+    toast.success('Entrega registrada com sucesso!');
+    resetForm();
+    fetchDeliveries();
+  };
 
-    if (itemsError) {
-      toast.error('Entrega criada, mas erro ao adicionar itens');
-    } else {
-      toast.success('Entrega registrada com sucesso!');
+  // Edit delivery
+  const startEdit = (delivery: Delivery) => {
+    setEditingDeliveryId(delivery.id);
+    setEditItems((delivery.delivery_items || []).map(i => ({
+      name: i.name,
+      quantity: String(i.quantity),
+      sale_price: String((i as any).sale_price || 0),
+    })));
+    setEditNotes(delivery.notes || '');
+    setEditPayment(delivery.payment_method || null);
+    setEditDueDate(delivery.payment_due_date ? new Date(delivery.payment_due_date + 'T00:00:00') : undefined);
+  };
+
+  const saveEdit = async (deliveryId: string) => {
+    if (!isOnline) { toast.error('Sem conexão'); return; }
+    setSavingEdit(true);
+
+    const updates: any = { notes: editNotes };
+    if (editPayment) updates.payment_method = editPayment;
+    if ((editPayment === 'prazo' || editPayment === 'boleto') && editDueDate) {
+      updates.payment_due_date = format(editDueDate, 'yyyy-MM-dd');
+    }
+    await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+
+    // Replace items
+    await supabase.from('delivery_items').delete().eq('delivery_id', deliveryId);
+    const validItems = editItems.filter(i => i.name.trim());
+    if (validItems.length > 0) {
+      await supabase.from('delivery_items').insert(
+        validItems.map(item => ({
+          delivery_id: deliveryId,
+          name: item.name.trim(),
+          quantity: parseInt(item.quantity) || 1,
+          sale_price: parseFloat(item.sale_price) || 0,
+        }))
+      );
     }
 
-    resetForm();
+    setSavingEdit(false);
+    setEditingDeliveryId(null);
+    toast.success('Entrega atualizada!');
     fetchDeliveries();
   };
 
@@ -260,63 +287,24 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Offline / Syncing Banner */}
-        {(!isOnline || pendingCount > 0) && (
-          <div className={`flex items-center gap-3 rounded-2xl p-4 ${
-            !isOnline 
-              ? 'bg-destructive/10 text-destructive border border-destructive/20' 
-              : 'bg-primary/10 text-primary border border-primary/20'
-          }`}>
-            {!isOnline ? (
-              <WifiOff className="w-5 h-5 shrink-0" />
-            ) : syncing ? (
-              <Loader2 className="w-5 h-5 shrink-0 animate-spin" />
-            ) : (
-              <CloudUpload className="w-5 h-5 shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              {!isOnline ? (
-                <>
-                  <p className="text-sm font-semibold">Sem conexão</p>
-                  <p className="text-xs opacity-80">
-                    {pendingCount > 0 
-                      ? `${pendingCount} operação(ões) pendente(s). Serão enviadas quando a conexão for restabelecida.`
-                      : 'Você pode continuar registrando entregas. Os dados serão enviados automaticamente.'}
-                  </p>
-                </>
-              ) : syncing ? (
-                <>
-                  <p className="text-sm font-semibold">Sincronizando...</p>
-                  <p className="text-xs opacity-80">Enviando dados pendentes ao servidor.</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-semibold">Dados pendentes</p>
-                  <p className="text-xs opacity-80">{pendingCount} operação(ões) aguardando sincronização.</p>
-                </>
-              )}
+        {/* Online check banner */}
+        {!isOnline && (
+          <div className="flex items-center gap-3 rounded-2xl p-4 bg-destructive/10 text-destructive border border-destructive/20">
+            <Loader2 className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Sem conexão</p>
+              <p className="text-xs opacity-80">Conecte-se à internet para registrar vendas.</p>
             </div>
           </div>
         )}
+
         <div className="flex items-center gap-4">
-          <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            onChange={handleAvatarUpload}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingAvatar}
-            className="relative w-16 h-16 rounded-full shrink-0 overflow-hidden bg-secondary border-2 border-border group"
-          >
+          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" />
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="relative w-16 h-16 rounded-full shrink-0 overflow-hidden bg-secondary border-2 border-border group">
             {avatarUrl ? (
               <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-xl font-bold text-muted-foreground">
-                {firstName.charAt(0)}
-              </div>
+              <div className="w-full h-full flex items-center justify-center text-xl font-bold text-muted-foreground">{firstName.charAt(0)}</div>
             )}
             <div className="absolute inset-0 bg-foreground/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <Camera className="w-5 h-5 text-background" />
@@ -334,10 +322,10 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleRefresh} disabled={refreshing || syncing} className="rounded-full" size="sm">
-              <RotateCw className={`w-4 h-4 ${refreshing || syncing ? 'animate-spin' : ''}`} />
+            <Button variant="outline" onClick={handleRefresh} disabled={refreshing} className="rounded-full" size="sm">
+              <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm">
+            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm" disabled={!isOnline}>
               <Plus className="w-4 h-4 mr-1" /> Nova
             </Button>
           </div>
@@ -347,52 +335,22 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
         {showCreate && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <h3 className="font-semibold text-sm">Registrar Entrega</h3>
-            <Input
-              placeholder="Nome do cliente"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              className="h-11 rounded-full px-5 bg-secondary border-0"
-            />
-            <Input
-              placeholder="Endereço"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="h-11 rounded-full px-5 bg-secondary border-0"
-            />
+            <ClientPicker value={client} onChange={setClient} />
             <Input
               placeholder="Observações (opcional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="h-11 rounded-full px-5 bg-secondary border-0"
             />
-
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
                 <div key={idx} className="flex gap-2 mb-2 items-center">
-                  <div className="flex-1 min-w-0">
-                    <ProductPicker
-                      value={item.name}
-                      onChange={(name) => updateItem(idx, 'name', name)}
-                    />
+                  <div className="flex-[2] min-w-0">
+                    <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
                   </div>
-                  <Input
-                    placeholder="Qtd"
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 w-16 shrink-0"
-                  />
-                  <Input
-                    placeholder="R$"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.sale_price}
-                    onChange={(e) => updateItem(idx, 'sale_price', e.target.value)}
-                    className="h-10 rounded-full px-4 bg-secondary border-0 w-24 shrink-0"
-                  />
+                  <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="h-10 rounded-full px-3 bg-secondary border-0 w-14 shrink-0" />
+                  <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => updateItem(idx, 'sale_price', e.target.value)} className="h-10 rounded-full px-3 bg-secondary border-0 w-20 shrink-0" />
                   {items.length > 1 && (
                     <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
                       <Trash2 className="w-4 h-4 text-destructive" />
@@ -404,15 +362,12 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                 <Plus className="w-3 h-3 mr-1" /> Adicionar item
               </Button>
             </div>
-
             <div className="flex gap-2 pt-1">
-              <Button onClick={handleSubmitDelivery} disabled={sending} className="flex-1 rounded-full h-11">
+              <Button onClick={handleSubmitDelivery} disabled={sending || !isOnline} className="flex-1 rounded-full h-11">
                 <Send className="w-4 h-4 mr-2" />
                 {sending ? 'Enviando...' : 'Enviar Entrega'}
               </Button>
-              <Button variant="outline" onClick={resetForm} className="rounded-full h-11">
-                Cancelar
-              </Button>
+              <Button variant="outline" onClick={resetForm} className="rounded-full h-11">Cancelar</Button>
             </div>
           </div>
         )}
@@ -430,178 +385,218 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
           ))}
         </div>
 
-        {/* Debtors from previous weeks */}
         <DebtorSearch employeeId={profile.id} />
 
         <div className="space-y-3">
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Minhas Entregas</h2>
           {deliveries.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega registrada. Clique em "Nova" para começar.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma entrega registrada.</p>
           )}
           {deliveries.map(delivery => {
             const expanded = expandedId === delivery.id;
             const config = statusConfig[delivery.status as keyof typeof statusConfig];
             const StatusIcon = config.icon;
+            const total = getDeliveryTotal(delivery);
+            const isEditing = editingDeliveryId === delivery.id;
 
             return (
               <div key={delivery.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-                <button
-                  onClick={() => setExpandedId(expanded ? null : delivery.id)}
-                  className="w-full p-4 flex items-center gap-3 text-left"
-                >
+                <button onClick={() => setExpandedId(expanded ? null : delivery.id)} className="w-full p-4 flex items-center gap-3 text-left">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${config.color}`}>
                     <StatusIcon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{delivery.client}</p>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <MapPin className="w-3 h-3 shrink-0" />
-                      <p className="text-xs truncate">{delivery.address}</p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">{config.label}</p>
                   </div>
+                  {delivery.status === 'delivered' && (
+                    <p className="text-sm font-bold text-primary shrink-0">R$ {total.toFixed(2)}</p>
+                  )}
                   {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                 </button>
 
                 {expanded && (
                   <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
-                      <div className="space-y-2">
-                        {delivery.delivery_items?.map(item => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span>{item.name}</span>
-                            <span className="font-semibold text-muted-foreground">x{item.quantity}</span>
+                    {isEditing ? (
+                      /* Edit mode */
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase">Editar Entrega</p>
+                        <Input
+                          placeholder="Observações"
+                          value={editNotes}
+                          onChange={(e) => setEditNotes(e.target.value)}
+                          className="h-10 rounded-full px-4 bg-secondary border-0"
+                        />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase">Itens</p>
+                        {editItems.map((item, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <div className="flex-[2] min-w-0">
+                              <ProductPicker value={item.name} onChange={(name) => {
+                                const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
+                              }} />
+                            </div>
+                            <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
+                              const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
+                            }} className="h-10 rounded-full px-3 bg-secondary border-0 w-14 shrink-0" />
+                            <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
+                              const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
+                            }} className="h-10 rounded-full px-3 bg-secondary border-0 w-20 shrink-0" />
+                            {editItems.length > 1 && (
+                              <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </button>
+                            )}
                           </div>
                         ))}
-                      </div>
-                    </div>
+                        <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { name: '', quantity: '1', sale_price: '' }])} className="rounded-full text-xs">
+                          <Plus className="w-3 h-3 mr-1" /> Adicionar item
+                        </Button>
 
-                    {delivery.notes && (
-                      <div className="bg-secondary rounded-xl p-3">
-                        <p className="text-xs text-muted-foreground">📝 {delivery.notes}</p>
-                      </div>
-                    )}
-
-                    {delivery.status === 'pending' && (
-                      <Button
-                        onClick={() => handleStatusChange(delivery.id, 'in_transit')}
-                        className="w-full rounded-full h-11"
-                      >
-                        <Truck className="w-4 h-4 mr-2" /> Iniciar Entrega
-                      </Button>
-                    )}
-                    {delivery.status === 'in_transit' && (
-                      <div className="space-y-3">
-                        {confirmingDeliveryId === delivery.id ? (
-                          <div className="space-y-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
-                            <div className="grid grid-cols-3 gap-2">
-                              {[
-                                { key: 'dinheiro', label: 'Dinheiro', icon: Banknote },
-                                { key: 'cartao', label: 'Cartão', icon: CreditCard },
-                                { key: 'pix', label: 'PIX', icon: Smartphone },
-                                { key: 'prazo', label: 'A Prazo', icon: CalendarDays },
-                                { key: 'boleto', label: 'Boleto', icon: FileText },
-                              ].map(pm => {
-                                const Icon = pm.icon;
-                                const active = selectedPayment === pm.key;
-                                return (
-                                  <button
-                                    key={pm.key}
-                                    onClick={() => setSelectedPayment(pm.key)}
-                                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-colors text-xs font-medium ${
-                                      active
-                                        ? 'border-primary bg-primary/10 text-primary'
-                                        : 'border-border bg-secondary text-muted-foreground'
-                                    }`}
-                                  >
-                                    <Icon className="w-5 h-5" />
-                                    {pm.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {(selectedPayment === 'prazo' || selectedPayment === 'boleto') && (
-                              <div className="space-y-2">
-                                <p className="text-xs font-semibold text-muted-foreground">
-                                  {selectedPayment === 'boleto' ? 'Data de vencimento do boleto' : 'Data de pagamento'}
-                                </p>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full rounded-full h-11 justify-start text-left font-normal">
-                                      <CalendarDays className="w-4 h-4 mr-2" />
-                                      {paymentDueDate ? format(paymentDueDate, "dd/MM/yyyy", { locale: ptBR }) : 'Selecione a data'}
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={paymentDueDate}
-                                      onSelect={setPaymentDueDate}
-                                      disabled={(date) => date < new Date()}
-                                      initialFocus
-                                      className="p-3 pointer-events-auto"
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                            )}
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => {
-                                  if (!selectedPayment) {
-                                    toast.error('Selecione a forma de pagamento');
-                                    return;
-                                  }
-                                  if ((selectedPayment === 'prazo' || selectedPayment === 'boleto') && !paymentDueDate) {
-                                    toast.error('Selecione a data de vencimento');
-                                    return;
-                                  }
-                                  handleStatusChange(delivery.id, 'delivered', selectedPayment, paymentDueDate);
-                                }}
-                                className="flex-1 rounded-full h-11"
-                              >
-                                <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
+                        <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {paymentMethods.map(pm => {
+                            const Icon = pm.icon;
+                            const active = editPayment === pm.key;
+                            return (
+                              <button key={pm.key} onClick={() => setEditPayment(pm.key)} className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-colors text-xs font-medium ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary text-muted-foreground'}`}>
+                                <Icon className="w-5 h-5" />{pm.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {(editPayment === 'prazo' || editPayment === 'boleto') && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full rounded-full h-11 justify-start text-left font-normal">
+                                <CalendarDays className="w-4 h-4 mr-2" />
+                                {editDueDate ? format(editDueDate, "dd/MM/yyyy", { locale: ptBR }) : 'Selecione a data'}
                               </Button>
-                              <Button
-                variant="outline"
-                onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); setPaymentDueDate(undefined); }}
-                                className="rounded-full h-11"
-                              >
-                                Cancelar
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <Button
-                            onClick={() => setConfirmingDeliveryId(delivery.id)}
-                            className="w-full rounded-full h-11"
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
-                          </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={editDueDate} onSelect={setEditDueDate} initialFocus className="p-3 pointer-events-auto" />
+                            </PopoverContent>
+                          </Popover>
                         )}
+
+                        <div className="flex gap-2">
+                          <Button onClick={() => saveEdit(delivery.id)} disabled={savingEdit} className="flex-1 rounded-full h-11">
+                            {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                          </Button>
+                          <Button variant="outline" onClick={() => setEditingDeliveryId(null)} className="rounded-full h-11">Cancelar</Button>
+                        </div>
                       </div>
-                    )}
-                    {delivery.status === 'delivered' && delivery.completed_at && (
-                      <div className="space-y-3">
-                        <div className="text-center text-xs text-muted-foreground space-y-1">
-                          <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
-                          {delivery.payment_method && (
-                            <p className="font-medium">
-                              💳 {delivery.payment_method === 'dinheiro' ? 'Dinheiro' : delivery.payment_method === 'cartao' ? 'Cartão' : delivery.payment_method === 'prazo' ? 'A Prazo' : delivery.payment_method === 'boleto' ? 'Boleto' : 'PIX'}
-                            </p>
-                          )}
-                          {(delivery.payment_method === 'prazo' || delivery.payment_method === 'boleto') && delivery.payment_due_date && (
-                            <p className="font-medium">
-                              📅 Vencimento: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                            </p>
+                    ) : (
+                      /* View mode */
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
+                          <div className="space-y-2">
+                            {delivery.delivery_items?.map(item => (
+                              <div key={item.id} className="flex justify-between text-sm">
+                                <span>{item.name}</span>
+                                <span className="font-semibold text-muted-foreground">
+                                  x{item.quantity}
+                                  {(item as any).sale_price > 0 && (
+                                    <span className="ml-2 text-foreground">R$ {(Number((item as any).sale_price) * item.quantity).toFixed(2)}</span>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {total > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border flex justify-between text-sm font-bold">
+                              <span>Total</span>
+                              <span>R$ {total.toFixed(2)}</span>
+                            </div>
                           )}
                         </div>
-                        <DeliveryReceiptPrint
-                          delivery={delivery}
-                          employeeName={profile.name}
-                        />
-                      </div>
+
+                        {delivery.notes && (
+                          <div className="bg-secondary rounded-xl p-3">
+                            <p className="text-xs text-muted-foreground">📝 {delivery.notes}</p>
+                          </div>
+                        )}
+
+                        {delivery.status === 'pending' && (
+                          <Button onClick={() => handleStatusChange(delivery.id, 'in_transit')} className="w-full rounded-full h-11" disabled={!isOnline}>
+                            <Truck className="w-4 h-4 mr-2" /> Iniciar Entrega
+                          </Button>
+                        )}
+
+                        {delivery.status === 'in_transit' && (
+                          <div className="space-y-3">
+                            {confirmingDeliveryId === delivery.id ? (
+                              <div className="space-y-3">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {paymentMethods.map(pm => {
+                                    const Icon = pm.icon;
+                                    const active = selectedPayment === pm.key;
+                                    return (
+                                      <button key={pm.key} onClick={() => setSelectedPayment(pm.key)} className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-colors text-xs font-medium ${active ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary text-muted-foreground'}`}>
+                                        <Icon className="w-5 h-5" />{pm.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {(selectedPayment === 'prazo' || selectedPayment === 'boleto') && (
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-semibold text-muted-foreground">Data de vencimento</p>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full rounded-full h-11 justify-start text-left font-normal">
+                                          <CalendarDays className="w-4 h-4 mr-2" />
+                                          {paymentDueDate ? format(paymentDueDate, "dd/MM/yyyy", { locale: ptBR }) : 'Selecione a data'}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={paymentDueDate} onSelect={setPaymentDueDate} disabled={(date) => date < new Date()} initialFocus className="p-3 pointer-events-auto" />
+                                      </PopoverContent>
+                                    </Popover>
+                                  </div>
+                                )}
+                                <div className="flex gap-2">
+                                  <Button onClick={() => {
+                                    if (!selectedPayment) { toast.error('Selecione a forma de pagamento'); return; }
+                                    if ((selectedPayment === 'prazo' || selectedPayment === 'boleto') && !paymentDueDate) { toast.error('Selecione a data de vencimento'); return; }
+                                    handleStatusChange(delivery.id, 'delivered', selectedPayment, paymentDueDate);
+                                  }} className="flex-1 rounded-full h-11" disabled={!isOnline}>
+                                    <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
+                                  </Button>
+                                  <Button variant="outline" onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); setPaymentDueDate(undefined); }} className="rounded-full h-11">Cancelar</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button onClick={() => setConfirmingDeliveryId(delivery.id)} className="w-full rounded-full h-11" disabled={!isOnline}>
+                                <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {delivery.status === 'delivered' && delivery.completed_at && (
+                          <div className="space-y-3">
+                            <div className="text-center text-xs text-muted-foreground space-y-1">
+                              <p>✅ Entregue em {new Date(delivery.completed_at).toLocaleString('pt-BR')}</p>
+                              {delivery.payment_method && (
+                                <p className="font-medium">💳 {paymentLabel(delivery.payment_method)}</p>
+                              )}
+                              {(delivery.payment_method === 'prazo' || delivery.payment_method === 'boleto') && delivery.payment_due_date && (
+                                <p className="font-medium">📅 Vencimento: {new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => startEdit(delivery)} className="flex-1 rounded-full h-10">
+                                <Edit2 className="w-3 h-3 mr-1" /> Editar
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => downloadReceipt(delivery, profile.name)} className="flex-1 rounded-full h-10">
+                                <Download className="w-3 h-3 mr-1" /> Baixar
+                              </Button>
+                            </div>
+                            <DeliveryReceiptPrint delivery={delivery} employeeName={profile.name} />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
