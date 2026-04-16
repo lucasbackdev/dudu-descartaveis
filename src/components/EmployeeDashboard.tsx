@@ -388,7 +388,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
               </Button>
             </div>
             <div className="flex gap-2 pt-1">
-              <Button onClick={handleSubmitDelivery} disabled={sending || !isOnline} className="flex-1 rounded-full h-11">
+              <Button onClick={handleSubmitDelivery} disabled={sending} className="flex-1 rounded-full h-11">
                 <Send className="w-4 h-4 mr-2" />
                 {sending ? 'Enviando...' : 'Enviar Entrega'}
               </Button>
