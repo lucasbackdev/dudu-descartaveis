@@ -370,17 +370,17 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 mb-2 items-center">
-                  <div className="flex-[2] min-w-0">
-                    <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
+                <div key={idx} className="mb-3 space-y-2 bg-secondary/40 rounded-2xl p-2">
+                  <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
+                  <div className="flex gap-2 items-center">
+                    <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                    <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => updateItem(idx, 'sale_price', e.target.value)} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                    {items.length > 1 && (
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
-                  <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="h-10 rounded-full px-3 bg-secondary border-0 w-14 shrink-0" />
-                  <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => updateItem(idx, 'sale_price', e.target.value)} className="h-10 rounded-full px-3 bg-secondary border-0 w-20 shrink-0" />
-                  {items.length > 1 && (
-                    <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  )}
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={addItem} className="rounded-full text-xs">
