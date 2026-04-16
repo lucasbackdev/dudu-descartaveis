@@ -387,7 +387,14 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                 const subtotal = qty * price;
                 return (
                   <div key={idx} className="mb-3 space-y-2 bg-secondary/40 rounded-2xl p-2">
-                    <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
+                    {item.name ? (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-background rounded-full">
+                        <span className="text-sm font-medium truncate">{item.name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => updateItem(idx, 'name', '')} className="rounded-full h-7 text-xs shrink-0">Trocar</Button>
+                      </div>
+                    ) : (
+                      <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
+                    )}
                     <div className="flex gap-2 items-center">
                       <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
                       <Input placeholder="R$ unit" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => updateItem(idx, 'sale_price', e.target.value)} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
