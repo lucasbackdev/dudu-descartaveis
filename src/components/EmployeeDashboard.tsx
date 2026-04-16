@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
 
 interface EmployeeDashboardProps {
   profile: Profile;
