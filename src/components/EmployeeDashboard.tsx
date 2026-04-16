@@ -585,7 +585,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                     if (!selectedPayment) { toast.error('Selecione a forma de pagamento'); return; }
                                     if ((selectedPayment === 'prazo' || selectedPayment === 'boleto') && !paymentDueDate) { toast.error('Selecione a data de vencimento'); return; }
                                     handleStatusChange(delivery.id, 'delivered', selectedPayment, paymentDueDate);
-                                  }} className="flex-1 rounded-full h-11" disabled={!isOnline}>
+                                  }} className="flex-1 rounded-full h-11">
                                     <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
                                   </Button>
                                   <Button variant="outline" onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); setPaymentDueDate(undefined); }} className="rounded-full h-11">Cancelar</Button>
