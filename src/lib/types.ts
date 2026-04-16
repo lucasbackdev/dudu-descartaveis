@@ -46,6 +46,7 @@ export interface Delivery {
   completed_at?: string;
   payment_method?: string | null;
   payment_due_date?: string | null;
+  paid?: boolean;
   delivery_items?: DeliveryItem[];
 }
 
