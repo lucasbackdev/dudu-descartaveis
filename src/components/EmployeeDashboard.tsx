@@ -312,13 +312,13 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Online check banner */}
+        {/* Offline banner (informativo) */}
         {!isOnline && (
-          <div className="flex items-center gap-3 rounded-2xl p-4 bg-destructive/10 text-destructive border border-destructive/20">
+          <div className="flex items-center gap-3 rounded-2xl p-4 bg-foreground/5 text-foreground border border-border">
             <Loader2 className="w-5 h-5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold">Sem conexão</p>
-              <p className="text-xs opacity-80">Conecte-se à internet para registrar vendas.</p>
+              <p className="text-sm font-semibold">Modo offline</p>
+              <p className="text-xs opacity-80">Suas vendas serão salvas e enviadas automaticamente ao reconectar.</p>
             </div>
           </div>
         )}
