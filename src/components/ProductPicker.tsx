@@ -60,7 +60,7 @@ const ProductPicker = ({ value, onChange }: ProductPickerProps) => {
             if (!e.target.value) onChange('');
           }}
           onFocus={() => setShowDropdown(true)}
-          className="h-10 rounded-full pl-9 pr-8 bg-secondary border-0 w-full"
+          className="h-11 rounded-full pl-9 pr-8 bg-secondary border-0 w-full"
         />
         {search && (
           <button

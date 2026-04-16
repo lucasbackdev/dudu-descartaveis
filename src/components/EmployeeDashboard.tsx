@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { addPendingOperation, syncPendingOperations } from '@/lib/offlineSync';
 
 interface EmployeeDashboardProps {
   profile: Profile;
@@ -143,6 +144,18 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
 
   useEffect(() => { fetchDeliveries(); }, [profile.id]);
 
+  // Auto-sync pending operations on mount and when coming back online
+  useEffect(() => {
+    if (!isOnline) return;
+    (async () => {
+      const { synced } = await syncPendingOperations();
+      if (synced > 0) {
+        toast.success(`${synced} venda(s) sincronizada(s)!`);
+        fetchDeliveries();
+      }
+    })();
+  }, [isOnline]);
+
   const handleRefresh = async () => {
     if (!isOnline) { toast.info('Sem conexão.'); return; }
     setRefreshing(true);
@@ -154,8 +167,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [paymentDueDate, setPaymentDueDate] = useState<Date | undefined>();
 
   const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string, dueDate?: Date) => {
-    if (!isOnline) { toast.error('Você precisa estar conectado à internet para registrar vendas.'); return; }
-
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') {
       updates.completed_at = new Date().toISOString();
@@ -163,11 +174,18 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       if ((paymentMethod === 'prazo' || paymentMethod === 'boleto') && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
     }
 
-    await supabase.from('deliveries').update(updates).eq('id', id);
+    if (!isOnline) {
+      addPendingOperation({ type: 'status_update', payload: { id, ...updates } });
+      // Optimistic local update
+      setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+      toast.success('Salvo offline. Será sincronizado ao voltar online.');
+    } else {
+      await supabase.from('deliveries').update(updates).eq('id', id);
+      fetchDeliveries();
+    }
     setConfirmingDeliveryId(null);
     setSelectedPayment(null);
     setPaymentDueDate(undefined);
-    fetchDeliveries();
   };
 
   const addItem = () => setItems([...items, { name: '', quantity: '1', sale_price: '' }]);
@@ -186,7 +204,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   };
 
   const handleSubmitDelivery = async () => {
-    if (!isOnline) { toast.error('Você precisa estar conectado à internet para registrar vendas.'); return; }
     if (!client.trim()) { toast.error('Selecione um cliente'); return; }
     const validItems = items.filter(i => i.name.trim());
     if (validItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
@@ -206,6 +223,26 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       notes: notes.trim() || '',
       status: 'pending',
     };
+
+    if (!isOnline) {
+      addPendingOperation({ type: 'create_delivery', payload: { delivery: deliveryData, items: validItemsMapped } });
+      // Optimistic add to local list
+      const tempDelivery: any = {
+        ...deliveryData,
+        id: `local-${crypto.randomUUID()}`,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+        payment_method: null,
+        payment_due_date: null,
+        paid: false,
+        delivery_items: validItemsMapped.map(i => ({ ...i, id: crypto.randomUUID() })),
+      };
+      setDeliveries(prev => [tempDelivery, ...prev]);
+      setSending(false);
+      toast.success('Salvo offline. Será sincronizado ao voltar online.');
+      resetForm();
+      return;
+    }
 
     const { data: delivery, error } = await supabase
       .from('deliveries')
@@ -287,13 +324,13 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Online check banner */}
+        {/* Offline banner (informativo) */}
         {!isOnline && (
-          <div className="flex items-center gap-3 rounded-2xl p-4 bg-destructive/10 text-destructive border border-destructive/20">
+          <div className="flex items-center gap-3 rounded-2xl p-4 bg-foreground/5 text-foreground border border-border">
             <Loader2 className="w-5 h-5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold">Sem conexão</p>
-              <p className="text-xs opacity-80">Conecte-se à internet para registrar vendas.</p>
+              <p className="text-sm font-semibold">Modo offline</p>
+              <p className="text-xs opacity-80">Suas vendas serão salvas e enviadas automaticamente ao reconectar.</p>
             </div>
           </div>
         )}
@@ -325,7 +362,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <Button variant="outline" onClick={handleRefresh} disabled={refreshing} className="rounded-full" size="sm">
               <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm" disabled={!isOnline}>
+            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm">
               <Plus className="w-4 h-4 mr-1" /> Nova
             </Button>
           </div>
@@ -345,17 +382,17 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens da entrega</p>
               {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 mb-2 items-center">
-                  <div className="flex-[2] min-w-0">
-                    <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
+                <div key={idx} className="mb-3 space-y-2 bg-secondary/40 rounded-2xl p-2">
+                  <ProductPicker value={item.name} onChange={(name) => updateItem(idx, 'name', name)} />
+                  <div className="flex gap-2 items-center">
+                    <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                    <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => updateItem(idx, 'sale_price', e.target.value)} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                    {items.length > 1 && (
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
-                  <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="h-10 rounded-full px-3 bg-secondary border-0 w-14 shrink-0" />
-                  <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => updateItem(idx, 'sale_price', e.target.value)} className="h-10 rounded-full px-3 bg-secondary border-0 w-20 shrink-0" />
-                  {items.length > 1 && (
-                    <Button variant="ghost" size="icon" onClick={() => removeItem(idx)} className="rounded-full h-10 w-10 shrink-0">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  )}
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={addItem} className="rounded-full text-xs">
@@ -363,7 +400,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
               </Button>
             </div>
             <div className="flex gap-2 pt-1">
-              <Button onClick={handleSubmitDelivery} disabled={sending || !isOnline} className="flex-1 rounded-full h-11">
+              <Button onClick={handleSubmitDelivery} disabled={sending} className="flex-1 rounded-full h-11">
                 <Send className="w-4 h-4 mr-2" />
                 {sending ? 'Enviando...' : 'Enviar Entrega'}
               </Button>
@@ -429,23 +466,23 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                         />
                         <p className="text-xs font-semibold text-muted-foreground uppercase">Itens</p>
                         {editItems.map((item, idx) => (
-                          <div key={idx} className="flex gap-2 items-center">
-                            <div className="flex-[2] min-w-0">
-                              <ProductPicker value={item.name} onChange={(name) => {
-                                const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
-                              }} />
+                          <div key={idx} className="space-y-2 bg-secondary/40 rounded-2xl p-2">
+                            <ProductPicker value={item.name} onChange={(name) => {
+                              const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
+                            }} />
+                            <div className="flex gap-2 items-center">
+                              <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
+                                const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
+                              }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                              <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
+                                const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
+                              }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                              {editItems.length > 1 && (
+                                <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} className="rounded-full h-10 w-10 shrink-0 flex items-center justify-center">
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </button>
+                              )}
                             </div>
-                            <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
-                              const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
-                            }} className="h-10 rounded-full px-3 bg-secondary border-0 w-14 shrink-0" />
-                            <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
-                              const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
-                            }} className="h-10 rounded-full px-3 bg-secondary border-0 w-20 shrink-0" />
-                            {editItems.length > 1 && (
-                              <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </button>
-                            )}
                           </div>
                         ))}
                         <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { name: '', quantity: '1', sale_price: '' }])} className="rounded-full text-xs">
@@ -518,7 +555,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                         )}
 
                         {delivery.status === 'pending' && (
-                          <Button onClick={() => handleStatusChange(delivery.id, 'in_transit')} className="w-full rounded-full h-11" disabled={!isOnline}>
+                          <Button onClick={() => handleStatusChange(delivery.id, 'in_transit')} className="w-full rounded-full h-11">
                             <Truck className="w-4 h-4 mr-2" /> Iniciar Entrega
                           </Button>
                         )}
@@ -560,14 +597,14 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                     if (!selectedPayment) { toast.error('Selecione a forma de pagamento'); return; }
                                     if ((selectedPayment === 'prazo' || selectedPayment === 'boleto') && !paymentDueDate) { toast.error('Selecione a data de vencimento'); return; }
                                     handleStatusChange(delivery.id, 'delivered', selectedPayment, paymentDueDate);
-                                  }} className="flex-1 rounded-full h-11" disabled={!isOnline}>
+                                  }} className="flex-1 rounded-full h-11">
                                     <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar
                                   </Button>
                                   <Button variant="outline" onClick={() => { setConfirmingDeliveryId(null); setSelectedPayment(null); setPaymentDueDate(undefined); }} className="rounded-full h-11">Cancelar</Button>
                                 </div>
                               </div>
                             ) : (
-                              <Button onClick={() => setConfirmingDeliveryId(delivery.id)} className="w-full rounded-full h-11" disabled={!isOnline}>
+                              <Button onClick={() => setConfirmingDeliveryId(delivery.id)} className="w-full rounded-full h-11">
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
                               </Button>
                             )}
