@@ -288,6 +288,84 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     if ('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
   };
 
+  const handleExportXLSX = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Entregas
+    const deliveriesData = deliveries.map(d => ({
+      Cliente: d.client,
+      Entregador: d.employee_name,
+      Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
+      'Forma Pagamento': d.payment_method ? paymentLabel(d.payment_method) : '',
+      'Data Vencimento': d.payment_due_date ? new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
+      Pago: d.paid ? 'Sim' : 'Não',
+      Total: getDeliveryTotal(d),
+      Observações: d.notes || '',
+      'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
+      'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(deliveriesData), 'Entregas');
+
+    // Itens das entregas
+    const itemsData: any[] = [];
+    deliveries.forEach(d => {
+      (d.delivery_items || []).forEach(item => {
+        itemsData.push({
+          Cliente: d.client,
+          Entregador: d.employee_name,
+          Produto: item.name,
+          Quantidade: item.quantity,
+          'Preço Unit.': Number((item as any).sale_price) || 0,
+          Subtotal: (Number((item as any).sale_price) || 0) * item.quantity,
+        });
+      });
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itemsData), 'Itens');
+
+    // Produtos
+    const productsData = products.map(p => ({
+      Código: p.code,
+      Nome: p.name,
+      Estoque: p.stock,
+      'Preço Custo': p.cost_price,
+      'Preço Venda': p.sale_price,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productsData), 'Produtos');
+
+    // Funcionários
+    const employeesData = employees.map(e => ({
+      Nome: e.name,
+      Email: e.email,
+      Aprovado: e.approved ? 'Sim' : 'Não',
+      'Entregas Total': deliveries.filter(d => d.employee_id === e.id).length,
+      'Entregas Concluídas': deliveries.filter(d => d.employee_id === e.id && d.status === 'delivered').length,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(employeesData), 'Funcionários');
+
+    // Relatório por pagamento
+    const paymentData = paymentReport.map(p => ({
+      'Forma': p.label,
+      'Quantidade': p.count,
+      'Total R$': p.total,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentData), 'Pagamentos');
+
+    XLSX.writeFile(wb, `dudu_relatorio_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('Planilha exportada com sucesso!');
+  };
+
+  const handleResetData = async () => {
+    if (resetConfirmText !== 'apagar') { toast.error('Digite "apagar" para confirmar'); return; }
+    setResetting(true);
+    const { data, error } = await supabase.functions.invoke('reset-data', { body: { confirmation: 'apagar' } });
+    setResetting(false);
+    if (error || data?.error) { toast.error(data?.error || 'Erro ao resetar dados'); return; }
+    setShowResetConfirm(false);
+    setResetConfirmText('');
+    toast.success('Todos os dados foram apagados!');
+    fetchData();
+  };
+
   const togglePaid = async (deliveryId: string, currentPaid: boolean) => {
     await supabase.from('deliveries').update({ paid: !currentPaid }).eq('id', deliveryId);
     setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, paid: !currentPaid } as any : d));
