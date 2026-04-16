@@ -496,9 +496,18 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                           const subtotal = qty * price;
                           return (
                             <div key={idx} className="space-y-2 bg-secondary/40 rounded-2xl p-2">
-                              <ProductPicker value={item.name} onChange={(name) => {
-                                const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
-                              }} />
+                              {item.name ? (
+                                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-background rounded-full">
+                                  <span className="text-sm font-medium truncate">{item.name}</span>
+                                  <Button variant="ghost" size="sm" onClick={() => {
+                                    const u = [...editItems]; u[idx] = { ...u[idx], name: '' }; setEditItems(u);
+                                  }} className="rounded-full h-7 text-xs shrink-0">Trocar</Button>
+                                </div>
+                              ) : (
+                                <ProductPicker value={item.name} onChange={(name) => {
+                                  const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
+                                }} />
+                              )}
                               <div className="flex gap-2 items-center">
                                 <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
                                   const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
