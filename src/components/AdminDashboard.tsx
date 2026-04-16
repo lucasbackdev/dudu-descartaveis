@@ -166,6 +166,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [dbSize, setDbSize] = useState<{ used_mb: number; limit_mb: number; percentage: number } | null>(null);
   const [deliverySearch, setDeliverySearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const fetchDbSize = async () => {
     try {
