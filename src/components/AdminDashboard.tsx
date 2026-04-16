@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -165,6 +166,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [dbSize, setDbSize] = useState<{ used_mb: number; limit_mb: number; percentage: number } | null>(null);
   const [deliverySearch, setDeliverySearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const fetchDbSize = async () => {
     try {
@@ -282,6 +286,84 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     setSavingSettings(false);
     toast.success('Configurações salvas!');
     if ('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
+  };
+
+  const handleExportXLSX = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Entregas
+    const deliveriesData = deliveries.map(d => ({
+      Cliente: d.client,
+      Entregador: d.employee_name,
+      Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
+      'Forma Pagamento': d.payment_method ? paymentLabel(d.payment_method) : '',
+      'Data Vencimento': d.payment_due_date ? new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
+      Pago: d.paid ? 'Sim' : 'Não',
+      Total: getDeliveryTotal(d),
+      Observações: d.notes || '',
+      'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
+      'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(deliveriesData), 'Entregas');
+
+    // Itens das entregas
+    const itemsData: any[] = [];
+    deliveries.forEach(d => {
+      (d.delivery_items || []).forEach(item => {
+        itemsData.push({
+          Cliente: d.client,
+          Entregador: d.employee_name,
+          Produto: item.name,
+          Quantidade: item.quantity,
+          'Preço Unit.': Number((item as any).sale_price) || 0,
+          Subtotal: (Number((item as any).sale_price) || 0) * item.quantity,
+        });
+      });
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itemsData), 'Itens');
+
+    // Produtos
+    const productsData = products.map(p => ({
+      Código: p.code,
+      Nome: p.name,
+      Estoque: p.stock,
+      'Preço Custo': p.cost_price,
+      'Preço Venda': p.sale_price,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productsData), 'Produtos');
+
+    // Funcionários
+    const employeesData = employees.map(e => ({
+      Nome: e.name,
+      Email: e.email,
+      Aprovado: e.approved ? 'Sim' : 'Não',
+      'Entregas Total': deliveries.filter(d => d.employee_id === e.id).length,
+      'Entregas Concluídas': deliveries.filter(d => d.employee_id === e.id && d.status === 'delivered').length,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(employeesData), 'Funcionários');
+
+    // Relatório por pagamento
+    const paymentData = paymentReport.map(p => ({
+      'Forma': p.label,
+      'Quantidade': p.count,
+      'Total R$': p.total,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentData), 'Pagamentos');
+
+    XLSX.writeFile(wb, `dudu_relatorio_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('Planilha exportada com sucesso!');
+  };
+
+  const handleResetData = async () => {
+    if (resetConfirmText !== 'apagar') { toast.error('Digite "apagar" para confirmar'); return; }
+    setResetting(true);
+    const { data, error } = await supabase.functions.invoke('reset-data', { body: { confirmation: 'apagar' } });
+    setResetting(false);
+    if (error || data?.error) { toast.error(data?.error || 'Erro ao resetar dados'); return; }
+    setShowResetConfirm(false);
+    setResetConfirmText('');
+    toast.success('Todos os dados foram apagados!');
+    fetchData();
   };
 
   const togglePaid = async (deliveryId: string, currentPaid: boolean) => {
@@ -737,6 +819,47 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 <div className="flex items-center justify-center h-32"><RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" /></div>
               )}
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={fetchDbSize}><RefreshCw className="w-4 h-4 mr-2" /> Atualizar Consumo</Button>
+            </div>
+
+            {/* Export & Reset */}
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-3"><Download className="w-5 h-5 text-muted-foreground" /><h3 className="font-semibold text-sm">Exportar Dados</h3></div>
+              <p className="text-xs text-muted-foreground">Baixe todas as informações do sistema em uma planilha Excel organizada.</p>
+              <Button onClick={handleExportXLSX} className="w-full rounded-full h-11"><Download className="w-4 h-4 mr-2" /> Baixar Planilha (.xlsx)</Button>
+            </div>
+
+            <div className="bg-card border-2 border-destructive/30 rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-3"><Trash2 className="w-5 h-5 text-destructive" /><h3 className="font-semibold text-sm text-destructive">Resetar Dados</h3></div>
+              <p className="text-xs text-muted-foreground">Apaga todas as entregas, produtos e clientes. <strong>As contas dos funcionários e administradores NÃO serão apagadas.</strong></p>
+              {showResetConfirm ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-destructive">Digite "apagar" para confirmar:</p>
+                  <Input
+                    placeholder='Digite "apagar"'
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                    className="h-11 rounded-full px-5 border-destructive/50 bg-destructive/5"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleResetData}
+                      disabled={resetting || resetConfirmText !== 'apagar'}
+                      className="flex-1 rounded-full h-11 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      {resetting ? 'Apagando...' : 'Confirmar Reset'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowResetConfirm(false); setResetConfirmText(''); }} className="rounded-full h-11">Cancelar</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full rounded-full h-11 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Resetar Todos os Dados
+                </Button>
+              )}
             </div>
           </>
         )}
