@@ -454,23 +454,23 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                         />
                         <p className="text-xs font-semibold text-muted-foreground uppercase">Itens</p>
                         {editItems.map((item, idx) => (
-                          <div key={idx} className="flex gap-2 items-center">
-                            <div className="flex-[2] min-w-0">
-                              <ProductPicker value={item.name} onChange={(name) => {
-                                const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
-                              }} />
+                          <div key={idx} className="space-y-2 bg-secondary/40 rounded-2xl p-2">
+                            <ProductPicker value={item.name} onChange={(name) => {
+                              const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
+                            }} />
+                            <div className="flex gap-2 items-center">
+                              <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
+                                const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
+                              }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                              <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
+                                const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
+                              }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                              {editItems.length > 1 && (
+                                <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} className="rounded-full h-10 w-10 shrink-0 flex items-center justify-center">
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </button>
+                              )}
                             </div>
-                            <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
-                              const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
-                            }} className="h-10 rounded-full px-3 bg-secondary border-0 w-14 shrink-0" />
-                            <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
-                              const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
-                            }} className="h-10 rounded-full px-3 bg-secondary border-0 w-20 shrink-0" />
-                            {editItems.length > 1 && (
-                              <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </button>
-                            )}
                           </div>
                         ))}
                         <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { name: '', quantity: '1', sale_price: '' }])} className="rounded-full text-xs">
