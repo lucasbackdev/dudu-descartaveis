@@ -155,8 +155,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [paymentDueDate, setPaymentDueDate] = useState<Date | undefined>();
 
   const handleStatusChange = async (id: string, newStatus: Delivery['status'], paymentMethod?: string, dueDate?: Date) => {
-    if (!isOnline) { toast.error('Você precisa estar conectado à internet para registrar vendas.'); return; }
-
     const updates: any = { status: newStatus };
     if (newStatus === 'delivered') {
       updates.completed_at = new Date().toISOString();
@@ -164,11 +162,18 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       if ((paymentMethod === 'prazo' || paymentMethod === 'boleto') && dueDate) updates.payment_due_date = format(dueDate, 'yyyy-MM-dd');
     }
 
-    await supabase.from('deliveries').update(updates).eq('id', id);
+    if (!isOnline) {
+      addPendingOperation({ type: 'status_update', payload: { id, ...updates } });
+      // Optimistic local update
+      setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+      toast.success('Salvo offline. Será sincronizado ao voltar online.');
+    } else {
+      await supabase.from('deliveries').update(updates).eq('id', id);
+      fetchDeliveries();
+    }
     setConfirmingDeliveryId(null);
     setSelectedPayment(null);
     setPaymentDueDate(undefined);
-    fetchDeliveries();
   };
 
   const addItem = () => setItems([...items, { name: '', quantity: '1', sale_price: '' }]);
