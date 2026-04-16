@@ -820,6 +820,47 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               )}
               <Button variant="outline" size="sm" className="w-full rounded-full" onClick={fetchDbSize}><RefreshCw className="w-4 h-4 mr-2" /> Atualizar Consumo</Button>
             </div>
+
+            {/* Export & Reset */}
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-3"><Download className="w-5 h-5 text-muted-foreground" /><h3 className="font-semibold text-sm">Exportar Dados</h3></div>
+              <p className="text-xs text-muted-foreground">Baixe todas as informações do sistema em uma planilha Excel organizada.</p>
+              <Button onClick={handleExportXLSX} className="w-full rounded-full h-11"><Download className="w-4 h-4 mr-2" /> Baixar Planilha (.xlsx)</Button>
+            </div>
+
+            <div className="bg-card border-2 border-destructive/30 rounded-2xl p-4 space-y-4">
+              <div className="flex items-center gap-3"><Trash2 className="w-5 h-5 text-destructive" /><h3 className="font-semibold text-sm text-destructive">Resetar Dados</h3></div>
+              <p className="text-xs text-muted-foreground">Apaga todas as entregas, produtos e clientes. <strong>As contas dos funcionários e administradores NÃO serão apagadas.</strong></p>
+              {showResetConfirm ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-destructive">Digite "apagar" para confirmar:</p>
+                  <Input
+                    placeholder='Digite "apagar"'
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                    className="h-11 rounded-full px-5 border-destructive/50 bg-destructive/5"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleResetData}
+                      disabled={resetting || resetConfirmText !== 'apagar'}
+                      className="flex-1 rounded-full h-11 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      {resetting ? 'Apagando...' : 'Confirmar Reset'}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowResetConfirm(false); setResetConfirmText(''); }} className="rounded-full h-11">Cancelar</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full rounded-full h-11 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Resetar Todos os Dados
+                </Button>
+              )}
+            </div>
           </>
         )}
 
