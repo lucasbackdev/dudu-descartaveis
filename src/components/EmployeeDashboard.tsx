@@ -350,7 +350,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
             <Button variant="outline" onClick={handleRefresh} disabled={refreshing} className="rounded-full" size="sm">
               <RotateCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm" disabled={!isOnline}>
+            <Button onClick={() => setShowCreate(!showCreate)} className="rounded-full" size="sm">
               <Plus className="w-4 h-4 mr-1" /> Nova
             </Button>
           </div>
