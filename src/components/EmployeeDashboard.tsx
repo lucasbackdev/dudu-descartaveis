@@ -483,29 +483,47 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                           className="h-10 rounded-full px-4 bg-secondary border-0"
                         />
                         <p className="text-xs font-semibold text-muted-foreground uppercase">Itens</p>
-                        {editItems.map((item, idx) => (
-                          <div key={idx} className="space-y-2 bg-secondary/40 rounded-2xl p-2">
-                            <ProductPicker value={item.name} onChange={(name) => {
-                              const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
-                            }} />
-                            <div className="flex gap-2 items-center">
-                              <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
-                                const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
-                              }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
-                              <Input placeholder="R$" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
-                                const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
-                              }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
-                              {editItems.length > 1 && (
-                                <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} className="rounded-full h-10 w-10 shrink-0 flex items-center justify-center">
-                                  <Trash2 className="w-4 h-4 text-destructive" />
-                                </button>
+                        {editItems.map((item, idx) => {
+                          const qty = parseInt(item.quantity) || 0;
+                          const price = parseFloat(item.sale_price) || 0;
+                          const subtotal = qty * price;
+                          return (
+                            <div key={idx} className="space-y-2 bg-secondary/40 rounded-2xl p-2">
+                              <ProductPicker value={item.name} onChange={(name) => {
+                                const u = [...editItems]; u[idx] = { ...u[idx], name }; setEditItems(u);
+                              }} />
+                              <div className="flex gap-2 items-center">
+                                <Input placeholder="Qtd" type="number" min="1" value={item.quantity} onChange={(e) => {
+                                  const u = [...editItems]; u[idx] = { ...u[idx], quantity: e.target.value }; setEditItems(u);
+                                }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                                <Input placeholder="R$ unit" type="number" min="0" step="0.01" value={item.sale_price} onChange={(e) => {
+                                  const u = [...editItems]; u[idx] = { ...u[idx], sale_price: e.target.value }; setEditItems(u);
+                                }} className="h-10 rounded-full px-3 bg-background border-0 flex-1" />
+                                {editItems.length > 1 && (
+                                  <button onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))} className="rounded-full h-10 w-10 shrink-0 flex items-center justify-center">
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </button>
+                                )}
+                              </div>
+                              {price > 0 && (
+                                <div className="text-xs text-muted-foreground text-right pr-2">
+                                  Subtotal: <span className="font-semibold text-foreground">R$ {subtotal.toFixed(2)}</span>
+                                </div>
                               )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         <Button variant="outline" size="sm" onClick={() => setEditItems([...editItems, { name: '', quantity: '1', sale_price: '' }])} className="rounded-full text-xs">
                           <Plus className="w-3 h-3 mr-1" /> Adicionar item
                         </Button>
+                        {editItems.some(i => parseFloat(i.sale_price) > 0) && (
+                          <div className="mt-2 flex justify-between items-center bg-secondary rounded-full px-4 py-2">
+                            <span className="text-sm font-semibold">Total</span>
+                            <span className="text-base font-bold">
+                              R$ {editItems.reduce((s, i) => s + (parseInt(i.quantity) || 0) * (parseFloat(i.sale_price) || 0), 0).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
 
                         <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de pagamento</p>
                         <div className="grid grid-cols-3 gap-2">
