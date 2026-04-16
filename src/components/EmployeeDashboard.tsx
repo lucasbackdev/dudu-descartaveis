@@ -543,7 +543,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                         )}
 
                         {delivery.status === 'pending' && (
-                          <Button onClick={() => handleStatusChange(delivery.id, 'in_transit')} className="w-full rounded-full h-11" disabled={!isOnline}>
+                          <Button onClick={() => handleStatusChange(delivery.id, 'in_transit')} className="w-full rounded-full h-11">
                             <Truck className="w-4 h-4 mr-2" /> Iniciar Entrega
                           </Button>
                         )}
