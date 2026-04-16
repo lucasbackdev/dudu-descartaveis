@@ -592,7 +592,7 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
                                 </div>
                               </div>
                             ) : (
-                              <Button onClick={() => setConfirmingDeliveryId(delivery.id)} className="w-full rounded-full h-11" disabled={!isOnline}>
+                              <Button onClick={() => setConfirmingDeliveryId(delivery.id)} className="w-full rounded-full h-11">
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Confirmar Entrega
                               </Button>
                             )}
