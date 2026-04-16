@@ -144,6 +144,18 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
 
   useEffect(() => { fetchDeliveries(); }, [profile.id]);
 
+  // Auto-sync pending operations on mount and when coming back online
+  useEffect(() => {
+    if (!isOnline) return;
+    (async () => {
+      const { synced } = await syncPendingOperations();
+      if (synced > 0) {
+        toast.success(`${synced} venda(s) sincronizada(s)!`);
+        fetchDeliveries();
+      }
+    })();
+  }, [isOnline]);
+
   const handleRefresh = async () => {
     if (!isOnline) { toast.info('Sem conexão.'); return; }
     setRefreshing(true);
