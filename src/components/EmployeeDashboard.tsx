@@ -192,7 +192,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   };
 
   const handleSubmitDelivery = async () => {
-    if (!isOnline) { toast.error('Você precisa estar conectado à internet para registrar vendas.'); return; }
     if (!client.trim()) { toast.error('Selecione um cliente'); return; }
     const validItems = items.filter(i => i.name.trim());
     if (validItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
@@ -212,6 +211,26 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
       notes: notes.trim() || '',
       status: 'pending',
     };
+
+    if (!isOnline) {
+      addPendingOperation({ type: 'create_delivery', payload: { delivery: deliveryData, items: validItemsMapped } });
+      // Optimistic add to local list
+      const tempDelivery: any = {
+        ...deliveryData,
+        id: `local-${crypto.randomUUID()}`,
+        created_at: new Date().toISOString(),
+        completed_at: null,
+        payment_method: null,
+        payment_due_date: null,
+        paid: false,
+        delivery_items: validItemsMapped.map(i => ({ ...i, id: crypto.randomUUID() })),
+      };
+      setDeliveries(prev => [tempDelivery, ...prev]);
+      setSending(false);
+      toast.success('Salvo offline. Será sincronizado ao voltar online.');
+      resetForm();
+      return;
+    }
 
     const { data: delivery, error } = await supabase
       .from('deliveries')
