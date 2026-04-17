@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -288,11 +288,20 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     if ('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
   };
 
-  const handleExportXLSX = () => {
-    const wb = XLSX.utils.book_new();
+  const handleExportXLSX = async () => {
+    const wb = new ExcelJS.Workbook();
+
+    const addSheet = (name: string, rows: Record<string, any>[]) => {
+      const ws = wb.addWorksheet(name);
+      if (rows.length === 0) return;
+      const headers = Object.keys(rows[0]);
+      ws.columns = headers.map(h => ({ header: h, key: h, width: Math.max(12, h.length + 2) }));
+      rows.forEach(r => ws.addRow(r));
+      ws.getRow(1).font = { bold: true };
+    };
 
     // Entregas
-    const deliveriesData = deliveries.map(d => ({
+    addSheet('Entregas', deliveries.map(d => ({
       Cliente: d.client,
       Entregador: d.employee_name,
       Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
@@ -303,8 +312,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       Observações: d.notes || '',
       'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
       'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(deliveriesData), 'Entregas');
+    })));
 
     // Itens das entregas
     const itemsData: any[] = [];
@@ -320,37 +328,40 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         });
       });
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(itemsData), 'Itens');
+    addSheet('Itens', itemsData);
 
-    // Produtos
-    const productsData = products.map(p => ({
+    addSheet('Produtos', products.map(p => ({
       Código: p.code,
       Nome: p.name,
       Estoque: p.stock,
       'Preço Custo': p.cost_price,
       'Preço Venda': p.sale_price,
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productsData), 'Produtos');
+    })));
 
-    // Funcionários
-    const employeesData = employees.map(e => ({
+    addSheet('Funcionários', employees.map(e => ({
       Nome: e.name,
       Email: e.email,
       Aprovado: e.approved ? 'Sim' : 'Não',
       'Entregas Total': deliveries.filter(d => d.employee_id === e.id).length,
       'Entregas Concluídas': deliveries.filter(d => d.employee_id === e.id && d.status === 'delivered').length,
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(employeesData), 'Funcionários');
+    })));
 
-    // Relatório por pagamento
-    const paymentData = paymentReport.map(p => ({
+    addSheet('Pagamentos', paymentReport.map(p => ({
       'Forma': p.label,
       'Quantidade': p.count,
       'Total R$': p.total,
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentData), 'Pagamentos');
+    })));
 
-    XLSX.writeFile(wb, `dudu_relatorio_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dudu_relatorio_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     toast.success('Planilha exportada com sucesso!');
   };
 
