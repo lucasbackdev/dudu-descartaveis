@@ -170,6 +170,16 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [resetting, setResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  // Clients management
+  const [clients, setClients] = useState<Array<{ id: string; name: string; razao_social: string; cnpj_cpf: string; telefone: string }>>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
+  const [savingClient, setSavingClient] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editClientValues, setEditClientValues] = useState({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
+  const [deletingClientId, setDeletingClientId] = useState<string | null>(null);
+
   const fetchDbSize = async () => {
     try {
       const { data, error } = await supabase.rpc('get_db_size_info');
