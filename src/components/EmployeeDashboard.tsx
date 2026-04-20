@@ -97,9 +97,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [showCreate, setShowCreate] = useState(false);
   const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isOnline } = useOnlineStatus();
   const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
