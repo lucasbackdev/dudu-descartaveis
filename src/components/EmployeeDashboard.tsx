@@ -264,13 +264,16 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
     if ((editPayment === 'prazo' || editPayment === 'boleto') && editDueDate) {
       updates.payment_due_date = format(editDueDate, 'yyyy-MM-dd');
     }
-    await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+    const { error: updErr } = await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+    if (updErr) { toast.error('Erro ao atualizar entrega'); setSavingEdit(false); return; }
 
-    // Replace items
-    await supabase.from('delivery_items').delete().eq('delivery_id', deliveryId);
+    // Replace items: delete old first, then insert new
+    const { error: delErr } = await supabase.from('delivery_items').delete().eq('delivery_id', deliveryId);
+    if (delErr) { toast.error('Erro ao remover itens antigos: ' + delErr.message); setSavingEdit(false); return; }
+
     const validItems = editItems.filter(i => i.name.trim());
     if (validItems.length > 0) {
-      await supabase.from('delivery_items').insert(
+      const { error: insErr } = await supabase.from('delivery_items').insert(
         validItems.map(item => ({
           delivery_id: deliveryId,
           name: item.name.trim(),
@@ -278,12 +281,13 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
           sale_price: parseFloat(item.sale_price) || 0,
         }))
       );
+      if (insErr) { toast.error('Erro ao salvar itens: ' + insErr.message); setSavingEdit(false); return; }
     }
 
     setSavingEdit(false);
     setEditingDeliveryId(null);
     toast.success('Entrega atualizada!');
-    fetchDeliveries();
+    await fetchDeliveries();
   };
 
   const pending = deliveries.filter(d => d.status !== 'delivered').length;
