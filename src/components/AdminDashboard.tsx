@@ -849,6 +849,97 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         {tab === 'performance' && <PerformanceCharts deliveries={deliveries} employees={employees} />}
         {tab === 'forecast' && <LoadForecast deliveries={deliveries} employees={employees} />}
 
+        {tab === 'clients' && (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold">Clientes</h1>
+                <p className="text-sm text-muted-foreground">{clients.length} cadastrado(s)</p>
+              </div>
+              <Button onClick={() => setShowCreateClient(!showCreateClient)} className="rounded-full" size="sm">
+                <UserPlus className="w-4 h-4 mr-1" /> Novo
+              </Button>
+            </div>
+
+            {showCreateClient && (
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Cadastrar Cliente</h3>
+                <Input placeholder="Nome (obrigatório)" value={newClient.name} onChange={(e) => setNewClient(p => ({ ...p, name: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <Input placeholder="Razão Social" value={newClient.razao_social} onChange={(e) => setNewClient(p => ({ ...p, razao_social: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <Input placeholder="CNPJ / CPF" value={newClient.cnpj_cpf} onChange={(e) => setNewClient(p => ({ ...p, cnpj_cpf: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <Input placeholder="Telefone" value={newClient.telefone} onChange={(e) => setNewClient(p => ({ ...p, telefone: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateClient} disabled={savingClient} className="flex-1 rounded-full h-11">
+                    {savingClient ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowCreateClient(false); setNewClient({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' }); }} className="rounded-full h-11">
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar por nome, CNPJ/CPF ou razão social..." value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
+            </div>
+
+            <div className="space-y-2">
+              {filteredClients.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum cliente encontrado.</p>
+              )}
+              {filteredClients.map(c => (
+                <div key={c.id} className="bg-card border border-border rounded-2xl p-4">
+                  {editingClientId === c.id ? (
+                    <div className="space-y-2">
+                      <Input placeholder="Nome" value={editClientValues.name} onChange={(e) => setEditClientValues(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <Input placeholder="Razão Social" value={editClientValues.razao_social} onChange={(e) => setEditClientValues(p => ({ ...p, razao_social: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <Input placeholder="CNPJ / CPF" value={editClientValues.cnpj_cpf} onChange={(e) => setEditClientValues(p => ({ ...p, cnpj_cpf: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <Input placeholder="Telefone" value={editClientValues.telefone} onChange={(e) => setEditClientValues(p => ({ ...p, telefone: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <div className="flex gap-2 pt-1">
+                        <Button onClick={saveEditClient} disabled={savingClient} size="sm" className="flex-1 rounded-full h-9 text-xs">
+                          <Save className="w-3 h-3 mr-1" /> {savingClient ? 'Salvando...' : 'Salvar'}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setEditingClientId(null)} className="rounded-full h-9 text-xs">
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm break-words">{c.name}</p>
+                        {c.razao_social && c.razao_social !== '---' && (
+                          <p className="text-xs text-muted-foreground break-words">{c.razao_social}</p>
+                        )}
+                        {c.cnpj_cpf && c.cnpj_cpf !== '---' && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">CNPJ/CPF: {c.cnpj_cpf}</p>
+                        )}
+                        {c.telefone && c.telefone !== '---' && (
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3" /> {c.telefone}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => startEditClient(c)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteClient(c.id, c.name)} disabled={deletingClientId === c.id} className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         {tab === 'settings' && (
           <>
             <div>
