@@ -106,20 +106,24 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
   };
 
   const startWebScan = async () => {
+    setErrorMsg('');
+    const nav = navigator as any;
+
+    if (!nav?.bluetooth) {
+      setErrorMsg(
+        'Bluetooth não suportado neste navegador. No iPhone, instale o app nativo. No Android, use o Chrome.'
+      );
+      setStep('error');
+      setScanning(false);
+      return;
+    }
+
     setStep('scanning');
     setScanning(true);
     setDevices([]);
     devicesRef.current = [];
-    setErrorMsg('');
 
-    const nav = navigator as any;
-    if (!nav.bluetooth) {
-      setErrorMsg('Bluetooth não suportado neste navegador. Use Chrome no Android ou instale o app nativo.');
-      setStep('error');
-      return;
-    }
-
-    // Try experimental requestLEScan first
+    // Try experimental requestLEScan first (Chrome flag)
     if (nav.bluetooth.requestLEScan) {
       try {
         const scan = await nav.bluetooth.requestLEScan({ acceptAllAdvertisements: true });
@@ -127,7 +131,7 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
         nav.bluetooth.addEventListener('advertisementreceived', handleAdvertisement);
         setTimeout(() => {
           handleStopScan();
-          nav.bluetooth.removeEventListener('advertisementreceived', handleAdvertisement);
+          try { nav.bluetooth.removeEventListener('advertisementreceived', handleAdvertisement); } catch {}
         }, 30000);
         return;
       } catch (err: any) {
@@ -135,7 +139,7 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
       }
     }
 
-    // Fallback: requestDevice (browser dialog)
+    // Fallback: requestDevice (browser dialog) - returns a single picked device
     try {
       const device = await nav.bluetooth.requestDevice({
         acceptAllDevices: true,
@@ -143,23 +147,23 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
       });
 
       const found: FoundDevice = {
-        id: device.id || device.name,
-        name: device.name || `Dispositivo ${device.id?.slice(0, 8)}`,
+        id: device.id || device.name || `dev-${Date.now()}`,
+        name: device.name || `Dispositivo ${(device.id || '').slice(0, 8)}`,
         device,
       };
       devicesRef.current = [found];
       setDevices([found]);
       setSelectedDevice(found);
       setScanning(false);
-      setStep('scanning');
+      setStep('selected');
     } catch (err: any) {
-      if (err.name === 'NotFoundError' || err.message?.includes('cancelled')) {
+      setScanning(false);
+      if (err?.name === 'NotFoundError' || /cancel/i.test(err?.message || '')) {
         setStep('idle');
       } else {
-        setErrorMsg(err.message || 'Erro ao buscar dispositivos');
+        setErrorMsg(err?.message || 'Erro ao buscar dispositivos Bluetooth');
         setStep('error');
       }
-      setScanning(false);
     }
   };
 
@@ -191,7 +195,8 @@ const BluetoothPrinterModal = ({ open, onClose, onPrint }: BluetoothPrinterModal
       await onPrint(selectedDevice.device);
       setStep('done');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erro ao imprimir');
+      console.error('Print error:', err);
+      setErrorMsg(err?.message || String(err) || 'Erro desconhecido ao imprimir');
       setStep('error');
     }
   };
