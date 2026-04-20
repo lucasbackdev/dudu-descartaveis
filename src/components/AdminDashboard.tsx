@@ -180,6 +180,33 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [editClientValues, setEditClientValues] = useState({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
   const [deletingClientId, setDeletingClientId] = useState<string | null>(null);
 
+  // Employee name editing
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [editEmployeeName, setEditEmployeeName] = useState('');
+  const [savingEmployeeName, setSavingEmployeeName] = useState(false);
+
+  const startEditEmployee = (user: Profile) => {
+    setEditingEmployeeId(user.id);
+    setEditEmployeeName(user.name);
+  };
+
+  const cancelEditEmployee = () => {
+    setEditingEmployeeId(null);
+    setEditEmployeeName('');
+  };
+
+  const saveEditEmployee = async (userId: string) => {
+    const name = editEmployeeName.trim();
+    if (!name) { toast.error('Nome não pode ficar vazio'); return; }
+    setSavingEmployeeName(true);
+    const { error } = await supabase.from('profiles').update({ name }).eq('id', userId);
+    setSavingEmployeeName(false);
+    if (error) { toast.error('Erro ao atualizar nome'); return; }
+    toast.success('Nome atualizado!');
+    cancelEditEmployee();
+    fetchData();
+  };
+
   const fetchDbSize = async () => {
     try {
       const { data, error } = await supabase.rpc('get_db_size_info');
