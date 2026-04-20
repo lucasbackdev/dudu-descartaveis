@@ -37,6 +37,32 @@ const ClientPicker = ({ value, onChange }: ClientPickerProps) => {
     }
   }, [loaded]);
 
+  // Realtime: novos clientes cadastrados (inclusive pelo admin) aparecem na hora
+  useEffect(() => {
+    const channel = supabase
+      .channel('clients-picker-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, (payload) => {
+        setClients((prev) => {
+          if (payload.eventType === 'INSERT') {
+            const c = payload.new as Client;
+            if (prev.some(x => x.id === c.id)) return prev;
+            return [...prev, c].sort((a, b) => a.name.localeCompare(b.name));
+          }
+          if (payload.eventType === 'UPDATE') {
+            const c = payload.new as Client;
+            return prev.map(x => x.id === c.id ? c : x).sort((a, b) => a.name.localeCompare(b.name));
+          }
+          if (payload.eventType === 'DELETE') {
+            const c = payload.old as Client;
+            return prev.filter(x => x.id !== c.id);
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   useEffect(() => { setSearch(value); }, [value]);
 
   useEffect(() => {

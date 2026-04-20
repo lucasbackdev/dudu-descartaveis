@@ -12,7 +12,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,7 +20,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'settings';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'clients' | 'settings';
 
 interface Product {
   id: string;
@@ -169,6 +169,16 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Clients management
+  const [clients, setClients] = useState<Array<{ id: string; name: string; razao_social: string; cnpj_cpf: string; telefone: string }>>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
+  const [savingClient, setSavingClient] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editClientValues, setEditClientValues] = useState({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
+  const [deletingClientId, setDeletingClientId] = useState<string | null>(null);
 
   const fetchDbSize = async () => {
     try {
@@ -383,6 +393,68 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     toast.success(!currentPaid ? 'Nota marcada como paga!' : 'Nota desmarcada');
   };
 
+  // ===== Clients management =====
+  const fetchClients = async () => {
+    const { data } = await supabase.from('clients').select('id, name, razao_social, cnpj_cpf, telefone').order('name');
+    setClients((data as any) || []);
+  };
+
+  useEffect(() => { fetchClients(); }, []);
+
+  const handleCreateClient = async () => {
+    if (!newClient.name.trim()) { toast.error('Nome obrigatório'); return; }
+    setSavingClient(true);
+    const { error } = await supabase.from('clients').insert({
+      name: newClient.name.trim(),
+      razao_social: newClient.razao_social.trim(),
+      cnpj_cpf: newClient.cnpj_cpf.trim(),
+      telefone: newClient.telefone.trim(),
+    });
+    setSavingClient(false);
+    if (error) { toast.error('Erro ao cadastrar cliente'); return; }
+    toast.success('Cliente cadastrado!');
+    setNewClient({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
+    setShowCreateClient(false);
+    fetchClients();
+  };
+
+  const startEditClient = (c: { id: string; name: string; razao_social: string; cnpj_cpf: string; telefone: string }) => {
+    setEditingClientId(c.id);
+    setEditClientValues({ name: c.name, razao_social: c.razao_social || '', cnpj_cpf: c.cnpj_cpf || '', telefone: c.telefone || '' });
+  };
+
+  const saveEditClient = async () => {
+    if (!editingClientId) return;
+    if (!editClientValues.name.trim()) { toast.error('Nome obrigatório'); return; }
+    setSavingClient(true);
+    const { error } = await supabase.from('clients').update({
+      name: editClientValues.name.trim(),
+      razao_social: editClientValues.razao_social.trim(),
+      cnpj_cpf: editClientValues.cnpj_cpf.trim(),
+      telefone: editClientValues.telefone.trim(),
+    }).eq('id', editingClientId);
+    setSavingClient(false);
+    if (error) { toast.error('Erro ao atualizar cliente'); return; }
+    toast.success('Cliente atualizado!');
+    setEditingClientId(null);
+    fetchClients();
+  };
+
+  const handleDeleteClient = async (id: string, name: string) => {
+    if (!confirm(`Excluir cliente "${name}"? As entregas existentes não serão afetadas.`)) return;
+    setDeletingClientId(id);
+    const { error } = await supabase.from('clients').delete().eq('id', id);
+    setDeletingClientId(null);
+    if (error) { toast.error('Erro ao excluir cliente'); return; }
+    toast.success('Cliente excluído!');
+    fetchClients();
+  };
+
+  const filteredClients = clients.filter(c => {
+    const q = clientSearch.toLowerCase();
+    return !q || c.name.toLowerCase().includes(q) || (c.cnpj_cpf || '').toLowerCase().includes(q) || (c.razao_social || '').toLowerCase().includes(q);
+  });
+
   const pendingApproval = employees.filter(u => !u.approved);
   const totalDelivered = deliveries.filter(d => d.status === 'delivered').length;
   const totalPending = deliveries.filter(d => d.status !== 'delivered').length;
@@ -409,6 +481,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
     { key: 'stock', label: 'Estoque', icon: BoxesIcon },
+    { key: 'clients', label: 'Clientes', icon: Contact },
     { key: 'forecast', label: 'Previsão', icon: TruckIcon },
     { key: 'financial', label: 'Financeiro', icon: DollarSign },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
@@ -775,6 +848,97 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         {tab === 'financial' && <FinancialCharts deliveries={deliveries} employees={employees} />}
         {tab === 'performance' && <PerformanceCharts deliveries={deliveries} employees={employees} />}
         {tab === 'forecast' && <LoadForecast deliveries={deliveries} employees={employees} />}
+
+        {tab === 'clients' && (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold">Clientes</h1>
+                <p className="text-sm text-muted-foreground">{clients.length} cadastrado(s)</p>
+              </div>
+              <Button onClick={() => setShowCreateClient(!showCreateClient)} className="rounded-full" size="sm">
+                <UserPlus className="w-4 h-4 mr-1" /> Novo
+              </Button>
+            </div>
+
+            {showCreateClient && (
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Cadastrar Cliente</h3>
+                <Input placeholder="Nome (obrigatório)" value={newClient.name} onChange={(e) => setNewClient(p => ({ ...p, name: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <Input placeholder="Razão Social" value={newClient.razao_social} onChange={(e) => setNewClient(p => ({ ...p, razao_social: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <Input placeholder="CNPJ / CPF" value={newClient.cnpj_cpf} onChange={(e) => setNewClient(p => ({ ...p, cnpj_cpf: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <Input placeholder="Telefone" value={newClient.telefone} onChange={(e) => setNewClient(p => ({ ...p, telefone: e.target.value }))} className="h-11 rounded-full px-5 bg-secondary border-0" />
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateClient} disabled={savingClient} className="flex-1 rounded-full h-11">
+                    {savingClient ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowCreateClient(false); setNewClient({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' }); }} className="rounded-full h-11">
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar por nome, CNPJ/CPF ou razão social..." value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
+            </div>
+
+            <div className="space-y-2">
+              {filteredClients.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum cliente encontrado.</p>
+              )}
+              {filteredClients.map(c => (
+                <div key={c.id} className="bg-card border border-border rounded-2xl p-4">
+                  {editingClientId === c.id ? (
+                    <div className="space-y-2">
+                      <Input placeholder="Nome" value={editClientValues.name} onChange={(e) => setEditClientValues(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <Input placeholder="Razão Social" value={editClientValues.razao_social} onChange={(e) => setEditClientValues(p => ({ ...p, razao_social: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <Input placeholder="CNPJ / CPF" value={editClientValues.cnpj_cpf} onChange={(e) => setEditClientValues(p => ({ ...p, cnpj_cpf: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <Input placeholder="Telefone" value={editClientValues.telefone} onChange={(e) => setEditClientValues(p => ({ ...p, telefone: e.target.value }))} className="h-10 rounded-full px-4 bg-secondary border-0 text-sm" />
+                      <div className="flex gap-2 pt-1">
+                        <Button onClick={saveEditClient} disabled={savingClient} size="sm" className="flex-1 rounded-full h-9 text-xs">
+                          <Save className="w-3 h-3 mr-1" /> {savingClient ? 'Salvando...' : 'Salvar'}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setEditingClientId(null)} className="rounded-full h-9 text-xs">
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm break-words">{c.name}</p>
+                        {c.razao_social && c.razao_social !== '---' && (
+                          <p className="text-xs text-muted-foreground break-words">{c.razao_social}</p>
+                        )}
+                        {c.cnpj_cpf && c.cnpj_cpf !== '---' && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">CNPJ/CPF: {c.cnpj_cpf}</p>
+                        )}
+                        {c.telefone && c.telefone !== '---' && (
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3" /> {c.telefone}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => startEditClient(c)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteClient(c.id, c.name)} disabled={deletingClientId === c.id} className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {tab === 'settings' && (
           <>
