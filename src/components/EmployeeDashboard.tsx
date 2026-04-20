@@ -112,23 +112,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1', sale_price: '' }]);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem válida'); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 2MB'); return; }
-
-    setUploadingAvatar(true);
-    const filePath = `${profile.id}/avatar.${file.name.split('.').pop()}`;
-    await supabase.storage.from('avatars').remove([filePath]);
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-    if (uploadError) { toast.error('Erro ao enviar foto'); setUploadingAvatar(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
-    setAvatarUrl(publicUrl + '?t=' + Date.now());
-    setUploadingAvatar(false);
-    toast.success('Foto de perfil atualizada!');
-  };
 
   const fetchDeliveries = async () => {
     const { data } = await supabase
