@@ -393,6 +393,68 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     toast.success(!currentPaid ? 'Nota marcada como paga!' : 'Nota desmarcada');
   };
 
+  // ===== Clients management =====
+  const fetchClients = async () => {
+    const { data } = await supabase.from('clients').select('id, name, razao_social, cnpj_cpf, telefone').order('name');
+    setClients((data as any) || []);
+  };
+
+  useEffect(() => { fetchClients(); }, []);
+
+  const handleCreateClient = async () => {
+    if (!newClient.name.trim()) { toast.error('Nome obrigatório'); return; }
+    setSavingClient(true);
+    const { error } = await supabase.from('clients').insert({
+      name: newClient.name.trim(),
+      razao_social: newClient.razao_social.trim(),
+      cnpj_cpf: newClient.cnpj_cpf.trim(),
+      telefone: newClient.telefone.trim(),
+    });
+    setSavingClient(false);
+    if (error) { toast.error('Erro ao cadastrar cliente'); return; }
+    toast.success('Cliente cadastrado!');
+    setNewClient({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
+    setShowCreateClient(false);
+    fetchClients();
+  };
+
+  const startEditClient = (c: { id: string; name: string; razao_social: string; cnpj_cpf: string; telefone: string }) => {
+    setEditingClientId(c.id);
+    setEditClientValues({ name: c.name, razao_social: c.razao_social || '', cnpj_cpf: c.cnpj_cpf || '', telefone: c.telefone || '' });
+  };
+
+  const saveEditClient = async () => {
+    if (!editingClientId) return;
+    if (!editClientValues.name.trim()) { toast.error('Nome obrigatório'); return; }
+    setSavingClient(true);
+    const { error } = await supabase.from('clients').update({
+      name: editClientValues.name.trim(),
+      razao_social: editClientValues.razao_social.trim(),
+      cnpj_cpf: editClientValues.cnpj_cpf.trim(),
+      telefone: editClientValues.telefone.trim(),
+    }).eq('id', editingClientId);
+    setSavingClient(false);
+    if (error) { toast.error('Erro ao atualizar cliente'); return; }
+    toast.success('Cliente atualizado!');
+    setEditingClientId(null);
+    fetchClients();
+  };
+
+  const handleDeleteClient = async (id: string, name: string) => {
+    if (!confirm(`Excluir cliente "${name}"? As entregas existentes não serão afetadas.`)) return;
+    setDeletingClientId(id);
+    const { error } = await supabase.from('clients').delete().eq('id', id);
+    setDeletingClientId(null);
+    if (error) { toast.error('Erro ao excluir cliente'); return; }
+    toast.success('Cliente excluído!');
+    fetchClients();
+  };
+
+  const filteredClients = clients.filter(c => {
+    const q = clientSearch.toLowerCase();
+    return !q || c.name.toLowerCase().includes(q) || (c.cnpj_cpf || '').toLowerCase().includes(q) || (c.razao_social || '').toLowerCase().includes(q);
+  });
+
   const pendingApproval = employees.filter(u => !u.approved);
   const totalDelivered = deliveries.filter(d => d.status === 'delivered').length;
   const totalPending = deliveries.filter(d => d.status !== 'delivered').length;
