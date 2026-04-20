@@ -336,22 +336,12 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
         )}
 
         <div className="flex items-center gap-4">
-          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="relative w-16 h-16 rounded-full shrink-0 overflow-hidden bg-secondary border-2 border-border group">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-xl font-bold text-muted-foreground">{firstName.charAt(0)}</div>
-            )}
-            <div className="absolute inset-0 bg-foreground/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera className="w-5 h-5 text-background" />
-            </div>
-            {uploadingAvatar && (
-              <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </button>
+          <div
+            className="w-16 h-16 rounded-full shrink-0 flex items-center justify-center text-2xl font-bold text-white"
+            style={{ backgroundColor: profile.color || 'hsl(var(--primary))' }}
+          >
+            {firstName.charAt(0).toUpperCase()}
+          </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold">Olá, {firstName} 👋</h1>
             <p className="text-sm text-muted-foreground">
