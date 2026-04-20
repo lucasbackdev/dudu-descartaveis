@@ -97,9 +97,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [showCreate, setShowCreate] = useState(false);
   const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url || null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isOnline } = useOnlineStatus();
   const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
@@ -115,23 +112,6 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<NewItem[]>([{ name: '', quantity: '1', sale_price: '' }]);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem válida'); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 2MB'); return; }
-
-    setUploadingAvatar(true);
-    const filePath = `${profile.id}/avatar.${file.name.split('.').pop()}`;
-    await supabase.storage.from('avatars').remove([filePath]);
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-    if (uploadError) { toast.error('Erro ao enviar foto'); setUploadingAvatar(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id);
-    setAvatarUrl(publicUrl + '?t=' + Date.now());
-    setUploadingAvatar(false);
-    toast.success('Foto de perfil atualizada!');
-  };
 
   const fetchDeliveries = async () => {
     const { data } = await supabase
@@ -336,22 +316,12 @@ const EmployeeDashboard = ({ profile, onLogout }: EmployeeDashboardProps) => {
         )}
 
         <div className="flex items-center gap-4">
-          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="relative w-16 h-16 rounded-full shrink-0 overflow-hidden bg-secondary border-2 border-border group">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-xl font-bold text-muted-foreground">{firstName.charAt(0)}</div>
-            )}
-            <div className="absolute inset-0 bg-foreground/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera className="w-5 h-5 text-background" />
-            </div>
-            {uploadingAvatar && (
-              <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </button>
+          <div
+            className="w-16 h-16 rounded-full shrink-0 flex items-center justify-center text-2xl font-bold text-white"
+            style={{ backgroundColor: profile.color || 'hsl(var(--primary))' }}
+          >
+            {firstName.charAt(0).toUpperCase()}
+          </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold">Olá, {firstName} 👋</h1>
             <p className="text-sm text-muted-foreground">

@@ -180,6 +180,33 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [editClientValues, setEditClientValues] = useState({ name: '', razao_social: '', cnpj_cpf: '', telefone: '' });
   const [deletingClientId, setDeletingClientId] = useState<string | null>(null);
 
+  // Employee name editing
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [editEmployeeName, setEditEmployeeName] = useState('');
+  const [savingEmployeeName, setSavingEmployeeName] = useState(false);
+
+  const startEditEmployee = (user: Profile) => {
+    setEditingEmployeeId(user.id);
+    setEditEmployeeName(user.name);
+  };
+
+  const cancelEditEmployee = () => {
+    setEditingEmployeeId(null);
+    setEditEmployeeName('');
+  };
+
+  const saveEditEmployee = async (userId: string) => {
+    const name = editEmployeeName.trim();
+    if (!name) { toast.error('Nome não pode ficar vazio'); return; }
+    setSavingEmployeeName(true);
+    const { error } = await supabase.from('profiles').update({ name }).eq('id', userId);
+    setSavingEmployeeName(false);
+    if (error) { toast.error('Erro ao atualizar nome'); return; }
+    toast.success('Nome atualizado!');
+    cancelEditEmployee();
+    fetchData();
+  };
+
   const fetchDbSize = async () => {
     try {
       const { data, error } = await supabase.rpc('get_db_size_info');
@@ -1088,14 +1115,39 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               {employees.filter(u => u.approved).map(user => {
                 const userDeliveries = deliveries.filter(d => d.employee_id === user.id);
                 const completed = userDeliveries.filter(d => d.status === 'delivered').length;
+                const isEditing = editingEmployeeId === user.id;
                 return (
                   <div key={user.id} className="bg-card border border-border rounded-2xl p-4">
                     <div className="flex items-center gap-3">
-                      {user.avatar_url ? <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">{user.name.charAt(0)}</div>}
-                      <div className="flex-1"><p className="font-semibold text-sm">{user.name}</p><p className="text-xs text-muted-foreground">{user.email}</p></div>
-                      <div className="text-right flex items-center gap-2">
-                        <div><p className="text-lg font-bold">{completed}/{userDeliveries.length}</p><p className="text-[10px] text-muted-foreground">entregas</p></div>
-                        <button onClick={() => handleDeleteEmployee(user.id, user.name)} disabled={deletingId === user.id} className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0" style={{ backgroundColor: user.color || 'hsl(var(--primary))', color: '#fff' }}>{user.name.charAt(0).toUpperCase()}</div>
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <Input
+                            autoFocus
+                            value={editEmployeeName}
+                            onChange={(e) => setEditEmployeeName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveEditEmployee(user.id); if (e.key === 'Escape') cancelEditEmployee(); }}
+                            className="h-9 rounded-full px-4 bg-secondary border-0 text-sm"
+                            placeholder="Nome de exibição"
+                          />
+                        ) : (
+                          <p className="font-semibold text-sm truncate">{user.name}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                      <div className="text-right flex items-center gap-1 shrink-0">
+                        {isEditing ? (
+                          <>
+                            <button onClick={() => saveEditEmployee(user.id)} disabled={savingEmployeeName} className="p-2 rounded-full text-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/10 disabled:opacity-50"><Save className="w-4 h-4" /></button>
+                            <button onClick={cancelEditEmployee} disabled={savingEmployeeName} className="p-2 rounded-full text-muted-foreground hover:bg-secondary disabled:opacity-50"><X className="w-4 h-4" /></button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="mr-1"><p className="text-lg font-bold leading-none">{completed}/{userDeliveries.length}</p><p className="text-[10px] text-muted-foreground">entregas</p></div>
+                            <button onClick={() => startEditEmployee(user)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"><Edit2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteEmployee(user.id, user.name)} disabled={deletingId === user.id} className="p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
