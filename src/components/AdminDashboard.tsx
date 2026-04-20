@@ -12,7 +12,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,7 +20,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'settings';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'clients' | 'settings';
 
 interface Product {
   id: string;
@@ -409,6 +409,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     { key: 'dashboard', label: 'Painel', icon: BarChart3 },
     { key: 'deliveries', label: 'Entregas', icon: Truck },
     { key: 'stock', label: 'Estoque', icon: BoxesIcon },
+    { key: 'clients', label: 'Clientes', icon: Contact },
     { key: 'forecast', label: 'Previsão', icon: TruckIcon },
     { key: 'financial', label: 'Financeiro', icon: DollarSign },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
