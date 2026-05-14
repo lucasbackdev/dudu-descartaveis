@@ -363,18 +363,25 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     };
 
     // Entregas
-    addSheet('Entregas', deliveries.map(d => ({
-      Cliente: d.client,
-      Entregador: d.employee_name,
-      Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
-      'Forma Pagamento': d.payment_method ? paymentLabel(d.payment_method) : '',
-      'Data Vencimento': d.payment_due_date ? new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
-      Pago: d.paid ? 'Sim' : 'Não',
-      Total: getDeliveryTotal(d),
-      Observações: d.notes || '',
-      'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
-      'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
-    })));
+    addSheet('Entregas', deliveries.map(d => {
+      const total = getDeliveryTotal(d);
+      const paidAmount = Number((d as any).amount_paid) || 0;
+      return {
+        'Data Venda': new Date(d.created_at).toLocaleDateString('pt-BR'),
+        Cliente: d.client,
+        Entregador: d.employee_name,
+        Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
+        'Forma Pagamento': d.payment_method ? paymentLabel(d.payment_method) : '',
+        'Data Vencimento': d.payment_due_date ? new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
+        Pago: d.paid ? 'Sim' : 'Não',
+        'Valor Pago': paidAmount,
+        'Valor Restante': Math.max(0, total - paidAmount),
+        Total: total,
+        Observações: d.notes || '',
+        'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
+        'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
+      };
+    }));
 
     // Itens das entregas
     const itemsData: any[] = [];
