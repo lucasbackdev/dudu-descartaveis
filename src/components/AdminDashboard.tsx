@@ -1336,6 +1336,13 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         )}
       </main>
       <BottomNav tabs={tabs} activeTab={tab} onTabChange={setTab} />
+      {editDeliveryOpen && (
+        <AdminEditDelivery
+          delivery={editDeliveryOpen}
+          onClose={() => setEditDeliveryOpen(null)}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   );
 };
