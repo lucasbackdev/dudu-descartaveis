@@ -500,9 +500,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
   // Filtered deliveries
   const filteredDeliveries = deliveries.filter(d => {
-    const matchSearch = !deliverySearch || d.client.toLowerCase().includes(deliverySearch.toLowerCase()) || d.employee_name.toLowerCase().includes(deliverySearch.toLowerCase());
+    const q = deliverySearch.trim().toLowerCase();
+    const matchSearch = !q || d.client.toLowerCase().includes(q) || (d.employee_name || '').toLowerCase().includes(q);
     const matchPayment = !paymentFilter || d.payment_method === paymentFilter;
-    return matchSearch && matchPayment;
+    const matchDay = !dayFilter || (d.created_at && d.created_at.slice(0, 10) === dayFilter);
+    return matchSearch && matchPayment && matchDay;
   });
 
   const tabs: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
