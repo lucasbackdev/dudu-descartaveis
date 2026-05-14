@@ -399,6 +399,30 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     });
     addSheet('Itens', itemsData);
 
+    // Vendas por dia x forma de pagamento
+    const dailyMap: Record<string, Record<string, number>> = {};
+    deliveries.filter(d => d.status === 'delivered').forEach(d => {
+      const day = new Date(d.created_at).toLocaleDateString('pt-BR');
+      const pm = d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagamento';
+      if (!dailyMap[day]) dailyMap[day] = {};
+      dailyMap[day][pm] = (dailyMap[day][pm] || 0) + getDeliveryTotal(d);
+    });
+    const allPMs = Array.from(new Set(deliveries.filter(d => d.status === 'delivered').map(d => d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagamento')));
+    const dailyRows = Object.entries(dailyMap)
+      .sort((a, b) => {
+        const [da, ma, ya] = a[0].split('/').map(Number);
+        const [db, mb, yb] = b[0].split('/').map(Number);
+        return new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime();
+      })
+      .map(([day, pms]) => {
+        const row: Record<string, any> = { Dia: day };
+        let total = 0;
+        allPMs.forEach(pm => { row[pm] = pms[pm] || 0; total += pms[pm] || 0; });
+        row['Total do Dia'] = total;
+        return row;
+      });
+    addSheet('Vendas por Dia', dailyRows);
+
     addSheet('Produtos', products.map(p => ({
       Código: p.code,
       Nome: p.name,
