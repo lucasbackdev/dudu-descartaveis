@@ -934,11 +934,31 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                                       )}
                                     </div>
                                   )}
+                                  {(() => {
+                                    const total = getDeliveryTotal(delivery);
+                                    const paid = Number((delivery as any).amount_paid) || 0;
+                                    if (paid > 0 && paid < total) {
+                                      return (
+                                        <div className="bg-destructive/10 border border-destructive/40 rounded-lg p-2">
+                                          <p className="text-xs font-bold text-destructive">💰 Pago R$ {paid.toFixed(2)} • Restante R$ {(total - paid).toFixed(2)}</p>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   {delivery.status === 'delivered' && (
                                     <Button variant="outline" size="sm" onClick={() => downloadReceipt(delivery)} className="w-full rounded-full h-9 text-xs">
                                       <Download className="w-3 h-3 mr-1" /> Baixar Nota
                                     </Button>
                                   )}
+                                  <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => setEditDeliveryOpen(delivery)} className="flex-1 rounded-full h-9 text-xs">
+                                      <Edit2 className="w-3 h-3 mr-1" /> Editar
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleDeleteDelivery(delivery.id, delivery.client)} className="flex-1 rounded-full h-9 text-xs text-destructive border-destructive/40 hover:bg-destructive/10">
+                                      <Trash2 className="w-3 h-3 mr-1" /> Excluir
+                                    </Button>
+                                  </div>
                                 </div>
                               )}
                             </div>
