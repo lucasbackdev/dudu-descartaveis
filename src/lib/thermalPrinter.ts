@@ -54,6 +54,7 @@ interface ReceiptData {
   date: string;
   paymentMethod?: string;
   paymentDueDate?: string;
+  amountPaid?: number;
 }
 
 async function loadLogoAsRaster(): Promise<number[] | null> {
