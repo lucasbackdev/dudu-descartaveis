@@ -15,6 +15,11 @@ import {
   DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -676,7 +681,24 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 <Input placeholder="Buscar cliente ou entregador..." value={deliverySearch} onChange={e => setDeliverySearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
               </div>
               <div className="flex gap-2 items-center">
-                <Input type="date" value={dayFilter} onChange={e => setDayFilter(e.target.value)} className="h-10 rounded-full bg-secondary border-0 flex-1" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={cn("h-10 rounded-full bg-secondary border-0 flex-1 px-4 text-left text-sm flex items-center gap-2", !dayFilter && "text-muted-foreground")}>
+                      <CalendarDays className="w-4 h-4" />
+                      {dayFilter ? format(parse(dayFilter, 'yyyy-MM-dd', new Date()), "dd/MM/yyyy", { locale: ptBR }) : 'Selecionar dia'}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      locale={ptBR}
+                      selected={dayFilter ? parse(dayFilter, 'yyyy-MM-dd', new Date()) : undefined}
+                      onSelect={(d) => setDayFilter(d ? format(d, 'yyyy-MM-dd') : '')}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
                 {dayFilter && (
                   <button onClick={() => setDayFilter('')} className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground">Limpar dia</button>
                 )}
