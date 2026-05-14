@@ -694,28 +694,69 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
             {/* Baixa de Notas - pending payments */}
             {(() => {
-              const pendingPayments = deliveredDeliveries.filter(d => (d.payment_method === 'prazo' || d.payment_method === 'boleto' || d.payment_method === 'pix') && !(d as any).paid);
-              if (pendingPayments.length === 0) return null;
+              const allPending = deliveredDeliveries.filter(d => (d.payment_method === 'prazo' || d.payment_method === 'boleto' || d.payment_method === 'pix') && !(d as any).paid);
+              if (allPending.length === 0) return null;
+              const q = debtorSearch.trim().toLowerCase();
+              const pendingPayments = q ? allPending.filter(d => d.client.toLowerCase().includes(q)) : allPending;
               return (
                 <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                  <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-destructive" /> Baixa de Notas ({pendingPayments.length})</h3>
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-destructive" /> Baixa de Notas ({allPending.length})</h3>
                   <p className="text-xs text-muted-foreground">Notas PIX, A Prazo e Boleto pendentes de confirmação</p>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input placeholder="Pesquisar devedor por nome..." value={debtorSearch} onChange={e => setDebtorSearch(e.target.value)} className="h-10 rounded-full pl-9 bg-secondary border-0" />
+                  </div>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {pendingPayments.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Nenhum devedor encontrado.</p>}
                     {pendingPayments.map(d => {
                       const todayStr = new Date().toISOString().slice(0, 10);
                       const isOverdue = (d.payment_method === 'prazo' || d.payment_method === 'boleto') && d.payment_due_date && d.payment_due_date < todayStr;
+                      const total = getDeliveryTotal(d);
+                      const paid = Number((d as any).amount_paid) || 0;
+                      const remaining = Math.max(0, total - paid);
+                      const isPartial = paid > 0 && paid < total;
+                      const isEditing = partialPayId === d.id;
                       return (
-                      <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl ${isOverdue ? 'bg-destructive/10 border border-destructive/40' : 'bg-secondary'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold truncate ${isOverdue ? 'text-destructive' : ''}`}>{d.client}</p>
-                          <p className={`text-xs ${isOverdue ? 'text-destructive/80 font-medium' : 'text-muted-foreground'}`}>
-                            {paymentLabel(d.payment_method!)} • R$ {getDeliveryTotal(d).toFixed(2)}
-                            {d.payment_due_date && ` • ${isOverdue ? '⚠️ Venceu' : 'Venc'}: ${new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}`}
-                          </p>
+                      <div key={d.id} className={`p-3 rounded-xl space-y-2 ${isOverdue ? 'bg-destructive/10 border border-destructive/40' : 'bg-secondary'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold truncate ${isOverdue ? 'text-destructive' : ''}`}>{d.client}</p>
+                            <p className={`text-xs ${isOverdue ? 'text-destructive/80 font-medium' : 'text-muted-foreground'}`}>
+                              {paymentLabel(d.payment_method!)} • R$ {total.toFixed(2)}
+                              {d.payment_due_date && ` • ${isOverdue ? '⚠️ Venceu' : 'Venc'}: ${new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}`}
+                            </p>
+                            {isPartial && (
+                              <p className="text-xs font-bold text-destructive mt-1">
+                                Pago R$ {paid.toFixed(2)} • Restante R$ {remaining.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                          <Button size="sm" onClick={() => togglePaid(d.id, false)} className="rounded-full h-8 text-xs">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Quitar
+                          </Button>
                         </div>
-                        <Button size="sm" onClick={() => togglePaid(d.id, false)} className="rounded-full h-8 text-xs">
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Dar baixa
-                        </Button>
+                        {isEditing ? (
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              autoFocus
+                              placeholder={`Valor pago (Total R$ ${total.toFixed(2)})`}
+                              value={partialPayValue}
+                              onChange={e => setPartialPayValue(e.target.value)}
+                              className="h-9 rounded-full bg-background border-0 text-sm flex-1"
+                            />
+                            <Button size="sm" onClick={() => savePartialPayment(d.id)} className="rounded-full h-9 text-xs">Salvar</Button>
+                            <Button size="sm" variant="outline" onClick={() => { setPartialPayId(null); setPartialPayValue(''); }} className="rounded-full h-9 text-xs">X</Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setPartialPayId(d.id); setPartialPayValue(paid > 0 ? String(paid) : ''); }}
+                            className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:bg-background"
+                          >
+                            {isPartial ? 'Atualizar pagamento parcial' : '💵 Pagamento parcial'}
+                          </button>
+                        )}
                       </div>
                       );
                     })}
