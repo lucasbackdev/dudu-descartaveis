@@ -475,9 +475,35 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   const togglePaid = async (deliveryId: string, currentPaid: boolean) => {
-    await supabase.from('deliveries').update({ paid: !currentPaid }).eq('id', deliveryId);
-    setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, paid: !currentPaid } as any : d));
-    toast.success(!currentPaid ? 'Nota marcada como paga!' : 'Nota desmarcada');
+    const d = deliveries.find(x => x.id === deliveryId);
+    const total = d ? getDeliveryTotal(d) : 0;
+    const updates: any = { paid: !currentPaid, amount_paid: !currentPaid ? total : 0 };
+    await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+    setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, ...updates } as any : d));
+    toast.success(!currentPaid ? 'Nota quitada!' : 'Nota desmarcada');
+  };
+
+  const savePartialPayment = async (deliveryId: string) => {
+    const value = parseFloat(partialPayValue.replace(',', '.'));
+    if (isNaN(value) || value < 0) { toast.error('Valor inválido'); return; }
+    const d = deliveries.find(x => x.id === deliveryId);
+    const total = d ? getDeliveryTotal(d) : 0;
+    const isFull = value >= total;
+    const updates: any = { amount_paid: value, paid: isFull };
+    await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+    setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, ...updates } as any : d));
+    setPartialPayId(null);
+    setPartialPayValue('');
+    toast.success(isFull ? 'Nota quitada!' : `Pagamento parcial registrado. Restante: R$ ${(total - value).toFixed(2)}`);
+  };
+
+  const handleDeleteDelivery = async (deliveryId: string, clientName: string) => {
+    if (!confirm(`Excluir a nota de "${clientName}"? Esta ação não pode ser desfeita.`)) return;
+    await supabase.from('delivery_items').delete().eq('delivery_id', deliveryId);
+    const { error } = await supabase.from('deliveries').delete().eq('id', deliveryId);
+    if (error) { toast.error('Erro ao excluir nota'); return; }
+    setDeliveries(prev => prev.filter(d => d.id !== deliveryId));
+    toast.success('Nota excluída!');
   };
 
   // ===== Clients management =====
