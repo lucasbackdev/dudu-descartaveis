@@ -8,6 +8,7 @@ import PerformanceCharts from '@/components/PerformanceCharts';
 import LoadForecast from '@/components/LoadForecast';
 import FinancialCharts from '@/components/FinancialCharts';
 import ClientPicker from '@/components/ClientPicker';
+import AdminEditDelivery from '@/components/AdminEditDelivery';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock,
@@ -175,6 +176,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [debtorSearch, setDebtorSearch] = useState('');
+  const [partialPayId, setPartialPayId] = useState<string | null>(null);
+  const [partialPayValue, setPartialPayValue] = useState<string>('');
+  const [editDeliveryOpen, setEditDeliveryOpen] = useState<Delivery | null>(null);
 
   // Clients management
   const [clients, setClients] = useState<Array<{ id: string; name: string; razao_social: string; cnpj_cpf: string; telefone: string }>>([]);
@@ -236,13 +241,32 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   const fetchData = async () => {
-    const [{ data: profiles }, { data: dels }, { data: prods }] = await Promise.all([
+    // Paginated fetch to bypass Supabase 1000-row default limit
+    const fetchAllDeliveries = async (): Promise<Delivery[]> => {
+      const pageSize = 1000;
+      let from = 0;
+      const all: Delivery[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('deliveries')
+          .select('*, delivery_items(*)')
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        all.push(...(data as Delivery[]));
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
+    };
+
+    const [{ data: profiles }, dels, { data: prods }] = await Promise.all([
       supabase.from('profiles').select('*').eq('role', 'employee'),
-      supabase.from('deliveries').select('*, delivery_items(*)').order('created_at', { ascending: false }),
+      fetchAllDeliveries(),
       supabase.from('products').select('*').order('name'),
     ]);
     setEmployees((profiles as Profile[]) || []);
-    setDeliveries((dels as Delivery[]) || []);
+    setDeliveries(dels);
     setProducts((prods as Product[]) || []);
 
     const { data: settings } = await supabase.from('admin_settings').select('*').limit(1).single();
@@ -344,18 +368,25 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     };
 
     // Entregas
-    addSheet('Entregas', deliveries.map(d => ({
-      Cliente: d.client,
-      Entregador: d.employee_name,
-      Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
-      'Forma Pagamento': d.payment_method ? paymentLabel(d.payment_method) : '',
-      'Data Vencimento': d.payment_due_date ? new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
-      Pago: d.paid ? 'Sim' : 'Não',
-      Total: getDeliveryTotal(d),
-      Observações: d.notes || '',
-      'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
-      'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
-    })));
+    addSheet('Entregas', deliveries.map(d => {
+      const total = getDeliveryTotal(d);
+      const paidAmount = Number((d as any).amount_paid) || 0;
+      return {
+        'Data Venda': new Date(d.created_at).toLocaleDateString('pt-BR'),
+        Cliente: d.client,
+        Entregador: d.employee_name,
+        Status: d.status === 'delivered' ? 'Entregue' : d.status === 'in_transit' ? 'Em trânsito' : 'Pendente',
+        'Forma Pagamento': d.payment_method ? paymentLabel(d.payment_method) : '',
+        'Data Vencimento': d.payment_due_date ? new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
+        Pago: d.paid ? 'Sim' : 'Não',
+        'Valor Pago': paidAmount,
+        'Valor Restante': Math.max(0, total - paidAmount),
+        Total: total,
+        Observações: d.notes || '',
+        'Criado em': new Date(d.created_at).toLocaleString('pt-BR'),
+        'Concluído em': d.completed_at ? new Date(d.completed_at).toLocaleString('pt-BR') : '',
+      };
+    }));
 
     // Itens das entregas
     const itemsData: any[] = [];
@@ -372,6 +403,30 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       });
     });
     addSheet('Itens', itemsData);
+
+    // Vendas por dia x forma de pagamento
+    const dailyMap: Record<string, Record<string, number>> = {};
+    deliveries.filter(d => d.status === 'delivered').forEach(d => {
+      const day = new Date(d.created_at).toLocaleDateString('pt-BR');
+      const pm = d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagamento';
+      if (!dailyMap[day]) dailyMap[day] = {};
+      dailyMap[day][pm] = (dailyMap[day][pm] || 0) + getDeliveryTotal(d);
+    });
+    const allPMs = Array.from(new Set(deliveries.filter(d => d.status === 'delivered').map(d => d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagamento')));
+    const dailyRows = Object.entries(dailyMap)
+      .sort((a, b) => {
+        const [da, ma, ya] = a[0].split('/').map(Number);
+        const [db, mb, yb] = b[0].split('/').map(Number);
+        return new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime();
+      })
+      .map(([day, pms]) => {
+        const row: Record<string, any> = { Dia: day };
+        let total = 0;
+        allPMs.forEach(pm => { row[pm] = pms[pm] || 0; total += pms[pm] || 0; });
+        row['Total do Dia'] = total;
+        return row;
+      });
+    addSheet('Vendas por Dia', dailyRows);
 
     addSheet('Produtos', products.map(p => ({
       Código: p.code,
@@ -421,9 +476,35 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   const togglePaid = async (deliveryId: string, currentPaid: boolean) => {
-    await supabase.from('deliveries').update({ paid: !currentPaid }).eq('id', deliveryId);
-    setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, paid: !currentPaid } as any : d));
-    toast.success(!currentPaid ? 'Nota marcada como paga!' : 'Nota desmarcada');
+    const d = deliveries.find(x => x.id === deliveryId);
+    const total = d ? getDeliveryTotal(d) : 0;
+    const updates: any = { paid: !currentPaid, amount_paid: !currentPaid ? total : 0 };
+    await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+    setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, ...updates } as any : d));
+    toast.success(!currentPaid ? 'Nota quitada!' : 'Nota desmarcada');
+  };
+
+  const savePartialPayment = async (deliveryId: string) => {
+    const value = parseFloat(partialPayValue.replace(',', '.'));
+    if (isNaN(value) || value < 0) { toast.error('Valor inválido'); return; }
+    const d = deliveries.find(x => x.id === deliveryId);
+    const total = d ? getDeliveryTotal(d) : 0;
+    const isFull = value >= total;
+    const updates: any = { amount_paid: value, paid: isFull };
+    await supabase.from('deliveries').update(updates).eq('id', deliveryId);
+    setDeliveries(prev => prev.map(d => d.id === deliveryId ? { ...d, ...updates } as any : d));
+    setPartialPayId(null);
+    setPartialPayValue('');
+    toast.success(isFull ? 'Nota quitada!' : `Pagamento parcial registrado. Restante: R$ ${(total - value).toFixed(2)}`);
+  };
+
+  const handleDeleteDelivery = async (deliveryId: string, clientName: string) => {
+    if (!confirm(`Excluir a nota de "${clientName}"? Esta ação não pode ser desfeita.`)) return;
+    await supabase.from('delivery_items').delete().eq('delivery_id', deliveryId);
+    const { error } = await supabase.from('deliveries').delete().eq('id', deliveryId);
+    if (error) { toast.error('Erro ao excluir nota'); return; }
+    setDeliveries(prev => prev.filter(d => d.id !== deliveryId));
+    toast.success('Nota excluída!');
   };
 
   // ===== Clients management =====
@@ -614,31 +695,126 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
             {/* Baixa de Notas - pending payments */}
             {(() => {
-              const pendingPayments = deliveredDeliveries.filter(d => (d.payment_method === 'prazo' || d.payment_method === 'boleto' || d.payment_method === 'pix') && !(d as any).paid);
-              if (pendingPayments.length === 0) return null;
+              const allPending = deliveredDeliveries.filter(d => (d.payment_method === 'prazo' || d.payment_method === 'boleto' || d.payment_method === 'pix') && !(d as any).paid);
+              if (allPending.length === 0) return null;
+              const q = debtorSearch.trim().toLowerCase();
+              const pendingPayments = q ? allPending.filter(d => d.client.toLowerCase().includes(q)) : allPending;
               return (
                 <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                  <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-destructive" /> Baixa de Notas ({pendingPayments.length})</h3>
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-destructive" /> Baixa de Notas ({allPending.length})</h3>
                   <p className="text-xs text-muted-foreground">Notas PIX, A Prazo e Boleto pendentes de confirmação</p>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input placeholder="Pesquisar devedor por nome..." value={debtorSearch} onChange={e => setDebtorSearch(e.target.value)} className="h-10 rounded-full pl-9 bg-secondary border-0" />
+                  </div>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {pendingPayments.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Nenhum devedor encontrado.</p>}
                     {pendingPayments.map(d => {
                       const todayStr = new Date().toISOString().slice(0, 10);
                       const isOverdue = (d.payment_method === 'prazo' || d.payment_method === 'boleto') && d.payment_due_date && d.payment_due_date < todayStr;
+                      const total = getDeliveryTotal(d);
+                      const paid = Number((d as any).amount_paid) || 0;
+                      const remaining = Math.max(0, total - paid);
+                      const isPartial = paid > 0 && paid < total;
+                      const isEditing = partialPayId === d.id;
                       return (
-                      <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl ${isOverdue ? 'bg-destructive/10 border border-destructive/40' : 'bg-secondary'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold truncate ${isOverdue ? 'text-destructive' : ''}`}>{d.client}</p>
-                          <p className={`text-xs ${isOverdue ? 'text-destructive/80 font-medium' : 'text-muted-foreground'}`}>
-                            {paymentLabel(d.payment_method!)} • R$ {getDeliveryTotal(d).toFixed(2)}
-                            {d.payment_due_date && ` • ${isOverdue ? '⚠️ Venceu' : 'Venc'}: ${new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}`}
-                          </p>
+                      <div key={d.id} className={`p-3 rounded-xl space-y-2 ${isOverdue ? 'bg-destructive/10 border border-destructive/40' : 'bg-secondary'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold truncate ${isOverdue ? 'text-destructive' : ''}`}>{d.client}</p>
+                            <p className={`text-xs ${isOverdue ? 'text-destructive/80 font-medium' : 'text-muted-foreground'}`}>
+                              {paymentLabel(d.payment_method!)} • R$ {total.toFixed(2)}
+                              {d.payment_due_date && ` • ${isOverdue ? '⚠️ Venceu' : 'Venc'}: ${new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}`}
+                            </p>
+                            {isPartial && (
+                              <p className="text-xs font-bold text-destructive mt-1">
+                                Pago R$ {paid.toFixed(2)} • Restante R$ {remaining.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                          <Button size="sm" onClick={() => togglePaid(d.id, false)} className="rounded-full h-8 text-xs">
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Quitar
+                          </Button>
                         </div>
-                        <Button size="sm" onClick={() => togglePaid(d.id, false)} className="rounded-full h-8 text-xs">
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Dar baixa
-                        </Button>
+                        {isEditing ? (
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              autoFocus
+                              placeholder={`Valor pago (Total R$ ${total.toFixed(2)})`}
+                              value={partialPayValue}
+                              onChange={e => setPartialPayValue(e.target.value)}
+                              className="h-9 rounded-full bg-background border-0 text-sm flex-1"
+                            />
+                            <Button size="sm" onClick={() => savePartialPayment(d.id)} className="rounded-full h-9 text-xs">Salvar</Button>
+                            <Button size="sm" variant="outline" onClick={() => { setPartialPayId(null); setPartialPayValue(''); }} className="rounded-full h-9 text-xs">X</Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setPartialPayId(d.id); setPartialPayValue(paid > 0 ? String(paid) : ''); }}
+                            className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:bg-background"
+                          >
+                            {isPartial ? 'Atualizar pagamento parcial' : '💵 Pagamento parcial'}
+                          </button>
+                        )}
                       </div>
                       );
                     })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Vendas por dia x forma de pagamento */}
+            {(() => {
+              const days = 30;
+              const cutoff = new Date();
+              cutoff.setDate(cutoff.getDate() - days);
+              const recent = deliveredDeliveries.filter(d => new Date(d.created_at) >= cutoff);
+              if (recent.length === 0) return null;
+              const dailyMap: Record<string, Record<string, number>> = {};
+              recent.forEach(d => {
+                const day = new Date(d.created_at).toLocaleDateString('pt-BR');
+                const pm = d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagto';
+                if (!dailyMap[day]) dailyMap[day] = {};
+                dailyMap[day][pm] = (dailyMap[day][pm] || 0) + getDeliveryTotal(d);
+              });
+              const allPMs = Array.from(new Set(recent.map(d => d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagto')));
+              const sortedDays = Object.keys(dailyMap).sort((a, b) => {
+                const [da, ma, ya] = a.split('/').map(Number);
+                const [db, mb, yb] = b.split('/').map(Number);
+                return new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime();
+              });
+              return (
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><BarChart3 className="w-4 h-4 text-primary" /> Vendas por Dia × Pagamento (últimos 30 dias)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 pr-2 font-semibold">Dia</th>
+                          {allPMs.map(pm => <th key={pm} className="text-right py-2 px-2 font-semibold">{pm}</th>)}
+                          <th className="text-right py-2 pl-2 font-bold">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedDays.map(day => {
+                          const total = allPMs.reduce((s, pm) => s + (dailyMap[day][pm] || 0), 0);
+                          return (
+                            <tr key={day} className="border-b border-border/50">
+                              <td className="py-2 pr-2 font-medium">{day}</td>
+                              {allPMs.map(pm => (
+                                <td key={pm} className="text-right py-2 px-2 text-muted-foreground">
+                                  {dailyMap[day][pm] ? `R$ ${dailyMap[day][pm].toFixed(2)}` : '—'}
+                                </td>
+                              ))}
+                              <td className="text-right py-2 pl-2 font-bold">R$ {total.toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               );
@@ -813,11 +989,31 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                                       )}
                                     </div>
                                   )}
+                                  {(() => {
+                                    const total = getDeliveryTotal(delivery);
+                                    const paid = Number((delivery as any).amount_paid) || 0;
+                                    if (paid > 0 && paid < total) {
+                                      return (
+                                        <div className="bg-destructive/10 border border-destructive/40 rounded-lg p-2">
+                                          <p className="text-xs font-bold text-destructive">💰 Pago R$ {paid.toFixed(2)} • Restante R$ {(total - paid).toFixed(2)}</p>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   {delivery.status === 'delivered' && (
                                     <Button variant="outline" size="sm" onClick={() => downloadReceipt(delivery)} className="w-full rounded-full h-9 text-xs">
                                       <Download className="w-3 h-3 mr-1" /> Baixar Nota
                                     </Button>
                                   )}
+                                  <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => setEditDeliveryOpen(delivery)} className="flex-1 rounded-full h-9 text-xs">
+                                      <Edit2 className="w-3 h-3 mr-1" /> Editar
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleDeleteDelivery(delivery.id, delivery.client)} className="flex-1 rounded-full h-9 text-xs text-destructive border-destructive/40 hover:bg-destructive/10">
+                                      <Trash2 className="w-3 h-3 mr-1" /> Excluir
+                                    </Button>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1194,6 +1390,13 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         )}
       </main>
       <BottomNav tabs={tabs} activeTab={tab} onTabChange={setTab} />
+      {editDeliveryOpen && (
+        <AdminEditDelivery
+          delivery={editDeliveryOpen}
+          onClose={() => setEditDeliveryOpen(null)}
+          onSaved={fetchData}
+        />
+      )}
     </div>
   );
 };

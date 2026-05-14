@@ -54,6 +54,7 @@ interface ReceiptData {
   date: string;
   paymentMethod?: string;
   paymentDueDate?: string;
+  amountPaid?: number;
 }
 
 async function loadLogoAsRaster(): Promise<number[] | null> {
@@ -191,6 +192,23 @@ export function buildReceipt(data: ReceiptData): { getBytes: () => Promise<numbe
         if ((data.paymentMethod === 'prazo' || data.paymentMethod === 'boleto') && data.paymentDueDate) {
           bytes.push(...line(`VENCIMENTO: ${data.paymentDueDate}`));
         }
+        bytes.push(...COMMANDS.BOLD_OFF);
+      }
+
+      // Partial payment info
+      if (typeof data.amountPaid === 'number' && data.amountPaid > 0 && data.amountPaid < total) {
+        const remaining = total - data.amountPaid;
+        bytes.push(...separator());
+        bytes.push(...COMMANDS.BOLD_ON);
+        bytes.push(...line(`PAGO: R$ ${data.amountPaid.toFixed(2)}`));
+        bytes.push(...COMMANDS.DOUBLE_HEIGHT_ON);
+        bytes.push(...line(`RESTANTE: R$ ${remaining.toFixed(2)}`));
+        bytes.push(...COMMANDS.NORMAL_SIZE);
+        bytes.push(...COMMANDS.BOLD_OFF);
+      } else if (typeof data.amountPaid === 'number' && data.amountPaid >= total && total > 0) {
+        bytes.push(...separator());
+        bytes.push(...COMMANDS.BOLD_ON);
+        bytes.push(...line(`PAGO: R$ ${data.amountPaid.toFixed(2)} (QUITADO)`));
         bytes.push(...COMMANDS.BOLD_OFF);
       }
 

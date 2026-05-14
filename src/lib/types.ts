@@ -47,6 +47,7 @@ export interface Delivery {
   payment_method?: string | null;
   payment_due_date?: string | null;
   paid?: boolean;
+  amount_paid?: number;
   delivery_items?: DeliveryItem[];
 }
 
@@ -55,4 +56,5 @@ export interface DeliveryItem {
   delivery_id: string;
   name: string;
   quantity: number;
+  sale_price?: number;
 }
