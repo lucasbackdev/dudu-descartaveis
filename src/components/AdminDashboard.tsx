@@ -175,6 +175,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [debtorSearch, setDebtorSearch] = useState('');
+  const [partialPayId, setPartialPayId] = useState<string | null>(null);
+  const [partialPayValue, setPartialPayValue] = useState<string>('');
+  const [editDeliveryOpen, setEditDeliveryOpen] = useState<Delivery | null>(null);
 
   // Clients management
   const [clients, setClients] = useState<Array<{ id: string; name: string; razao_social: string; cnpj_cpf: string; telefone: string }>>([]);
