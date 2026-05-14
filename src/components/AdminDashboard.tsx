@@ -621,20 +621,24 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                   <h3 className="font-semibold text-sm flex items-center gap-2"><FileText className="w-4 h-4 text-destructive" /> Baixa de Notas ({pendingPayments.length})</h3>
                   <p className="text-xs text-muted-foreground">Notas PIX, A Prazo e Boleto pendentes de confirmação</p>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {pendingPayments.map(d => (
-                      <div key={d.id} className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
+                    {pendingPayments.map(d => {
+                      const todayStr = new Date().toISOString().slice(0, 10);
+                      const isOverdue = (d.payment_method === 'prazo' || d.payment_method === 'boleto') && d.payment_due_date && d.payment_due_date < todayStr;
+                      return (
+                      <div key={d.id} className={`flex items-center gap-3 p-3 rounded-xl ${isOverdue ? 'bg-destructive/10 border border-destructive/40' : 'bg-secondary'}`}>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{d.client}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className={`text-sm font-semibold truncate ${isOverdue ? 'text-destructive' : ''}`}>{d.client}</p>
+                          <p className={`text-xs ${isOverdue ? 'text-destructive/80 font-medium' : 'text-muted-foreground'}`}>
                             {paymentLabel(d.payment_method!)} • R$ {getDeliveryTotal(d).toFixed(2)}
-                            {d.payment_due_date && ` • Venc: ${new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}`}
+                            {d.payment_due_date && ` • ${isOverdue ? '⚠️ Venceu' : 'Venc'}: ${new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}`}
                           </p>
                         </div>
                         <Button size="sm" onClick={() => togglePaid(d.id, false)} className="rounded-full h-8 text-xs">
                           <CheckCircle2 className="w-3 h-3 mr-1" /> Dar baixa
                         </Button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
