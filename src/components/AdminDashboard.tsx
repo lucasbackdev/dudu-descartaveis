@@ -673,7 +673,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             <div className="space-y-2">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar cliente ou vendedor..." value={deliverySearch} onChange={e => setDeliverySearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
+                <Input placeholder="Buscar cliente ou entregador..." value={deliverySearch} onChange={e => setDeliverySearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
+              </div>
+              <div className="flex gap-2 items-center">
+                <Input type="date" value={dayFilter} onChange={e => setDayFilter(e.target.value)} className="h-10 rounded-full bg-secondary border-0 flex-1" />
+                {dayFilter && (
+                  <button onClick={() => setDayFilter('')} className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground">Limpar dia</button>
+                )}
+                <button onClick={() => setDayFilter(new Date().toISOString().slice(0, 10))} className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground">Hoje</button>
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setPaymentFilter(null)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!paymentFilter ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`}>Todos</button>
