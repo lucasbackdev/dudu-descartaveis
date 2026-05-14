@@ -15,6 +15,11 @@ import {
   DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface AdminDashboardProps {
   onLogout: () => void;
