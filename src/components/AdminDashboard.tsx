@@ -236,13 +236,32 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   };
 
   const fetchData = async () => {
-    const [{ data: profiles }, { data: dels }, { data: prods }] = await Promise.all([
+    // Paginated fetch to bypass Supabase 1000-row default limit
+    const fetchAllDeliveries = async (): Promise<Delivery[]> => {
+      const pageSize = 1000;
+      let from = 0;
+      const all: Delivery[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from('deliveries')
+          .select('*, delivery_items(*)')
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        all.push(...(data as Delivery[]));
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
+    };
+
+    const [{ data: profiles }, dels, { data: prods }] = await Promise.all([
       supabase.from('profiles').select('*').eq('role', 'employee'),
-      supabase.from('deliveries').select('*, delivery_items(*)').order('created_at', { ascending: false }),
+      fetchAllDeliveries(),
       supabase.from('products').select('*').order('name'),
     ]);
     setEmployees((profiles as Profile[]) || []);
-    setDeliveries((dels as Delivery[]) || []);
+    setDeliveries(dels);
     setProducts((prods as Product[]) || []);
 
     const { data: settings } = await supabase.from('admin_settings').select('*').limit(1).single();
