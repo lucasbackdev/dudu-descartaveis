@@ -166,6 +166,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [dbSize, setDbSize] = useState<{ used_mb: number; limit_mb: number; percentage: number } | null>(null);
   const [deliverySearch, setDeliverySearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [dayFilter, setDayFilter] = useState<string>('');
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -499,9 +500,11 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
   // Filtered deliveries
   const filteredDeliveries = deliveries.filter(d => {
-    const matchSearch = !deliverySearch || d.client.toLowerCase().includes(deliverySearch.toLowerCase()) || d.employee_name.toLowerCase().includes(deliverySearch.toLowerCase());
+    const q = deliverySearch.trim().toLowerCase();
+    const matchSearch = !q || d.client.toLowerCase().includes(q) || (d.employee_name || '').toLowerCase().includes(q);
     const matchPayment = !paymentFilter || d.payment_method === paymentFilter;
-    return matchSearch && matchPayment;
+    const matchDay = !dayFilter || (d.created_at && d.created_at.slice(0, 10) === dayFilter);
+    return matchSearch && matchPayment && matchDay;
   });
 
   const tabs: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
@@ -670,7 +673,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             <div className="space-y-2">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar cliente ou vendedor..." value={deliverySearch} onChange={e => setDeliverySearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
+                <Input placeholder="Buscar cliente ou entregador..." value={deliverySearch} onChange={e => setDeliverySearch(e.target.value)} className="h-11 rounded-full pl-10 bg-secondary border-0" />
+              </div>
+              <div className="flex gap-2 items-center">
+                <Input type="date" value={dayFilter} onChange={e => setDayFilter(e.target.value)} className="h-10 rounded-full bg-secondary border-0 flex-1" />
+                {dayFilter && (
+                  <button onClick={() => setDayFilter('')} className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground">Limpar dia</button>
+                )}
+                <button onClick={() => setDayFilter(new Date().toISOString().slice(0, 10))} className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground">Hoje</button>
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setPaymentFilter(null)} className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!paymentFilter ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`}>Todos</button>
