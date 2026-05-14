@@ -86,6 +86,7 @@ export type Database = {
       deliveries: {
         Row: {
           address: string
+          amount_paid: number
           client: string
           completed_at: string | null
           created_at: string
@@ -100,6 +101,7 @@ export type Database = {
         }
         Insert: {
           address?: string
+          amount_paid?: number
           client: string
           completed_at?: string | null
           created_at?: string
@@ -114,6 +116,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          amount_paid?: number
           client?: string
           completed_at?: string | null
           created_at?: string
