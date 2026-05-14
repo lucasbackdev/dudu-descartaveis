@@ -766,6 +766,60 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               );
             })()}
 
+            {/* Vendas por dia x forma de pagamento */}
+            {(() => {
+              const days = 30;
+              const cutoff = new Date();
+              cutoff.setDate(cutoff.getDate() - days);
+              const recent = deliveredDeliveries.filter(d => new Date(d.created_at) >= cutoff);
+              if (recent.length === 0) return null;
+              const dailyMap: Record<string, Record<string, number>> = {};
+              recent.forEach(d => {
+                const day = new Date(d.created_at).toLocaleDateString('pt-BR');
+                const pm = d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagto';
+                if (!dailyMap[day]) dailyMap[day] = {};
+                dailyMap[day][pm] = (dailyMap[day][pm] || 0) + getDeliveryTotal(d);
+              });
+              const allPMs = Array.from(new Set(recent.map(d => d.payment_method ? paymentLabel(d.payment_method) : 'Sem pagto')));
+              const sortedDays = Object.keys(dailyMap).sort((a, b) => {
+                const [da, ma, ya] = a.split('/').map(Number);
+                const [db, mb, yb] = b.split('/').map(Number);
+                return new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime();
+              });
+              return (
+                <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><BarChart3 className="w-4 h-4 text-primary" /> Vendas por Dia × Pagamento (últimos 30 dias)</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-2 pr-2 font-semibold">Dia</th>
+                          {allPMs.map(pm => <th key={pm} className="text-right py-2 px-2 font-semibold">{pm}</th>)}
+                          <th className="text-right py-2 pl-2 font-bold">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedDays.map(day => {
+                          const total = allPMs.reduce((s, pm) => s + (dailyMap[day][pm] || 0), 0);
+                          return (
+                            <tr key={day} className="border-b border-border/50">
+                              <td className="py-2 pr-2 font-medium">{day}</td>
+                              {allPMs.map(pm => (
+                                <td key={pm} className="text-right py-2 px-2 text-muted-foreground">
+                                  {dailyMap[day][pm] ? `R$ ${dailyMap[day][pm].toFixed(2)}` : '—'}
+                                </td>
+                              ))}
+                              <td className="text-right py-2 pl-2 font-bold">R$ {total.toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div>
               <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">Atividade Recente</h2>
               <div className="space-y-2">
