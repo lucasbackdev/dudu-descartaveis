@@ -79,14 +79,14 @@ const DebtorSearch = ({ employeeId }: { employeeId: string }) => {
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {filtered.map(d => (
-                <div key={d.id} className="bg-secondary rounded-xl p-3 space-y-1">
-                  <p className="text-sm font-semibold">{d.client}</p>
+                <div key={d.id} className="bg-destructive/10 border border-destructive/40 rounded-xl p-3 space-y-1">
+                  <p className="text-sm font-semibold text-destructive">{d.client}</p>
                   
                   <div className="flex gap-3 text-xs">
-                    <span className="text-destructive font-medium">
-                      📅 Venceu: {new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                    <span className="text-destructive font-bold">
+                      ⚠️ Venceu: {new Date(d.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                     </span>
-                    <span className="text-muted-foreground">
+                    <span className="text-destructive/80">
                       {d.payment_method === 'boleto' ? 'Boleto' : 'A Prazo'}
                     </span>
                   </div>
