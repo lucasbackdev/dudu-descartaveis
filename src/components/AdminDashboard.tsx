@@ -688,7 +688,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                       {dayFilter ? format(parse(dayFilter, 'yyyy-MM-dd', new Date()), "dd/MM/yyyy", { locale: ptBR }) : 'Selecionar dia'}
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 rounded-none" align="start">
                     <Calendar
                       mode="single"
                       locale={ptBR}
