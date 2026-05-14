@@ -8,6 +8,7 @@ import PerformanceCharts from '@/components/PerformanceCharts';
 import LoadForecast from '@/components/LoadForecast';
 import FinancialCharts from '@/components/FinancialCharts';
 import ClientPicker from '@/components/ClientPicker';
+import AdminEditDelivery from '@/components/AdminEditDelivery';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock,
