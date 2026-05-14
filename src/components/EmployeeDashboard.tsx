@@ -79,6 +79,15 @@ const downloadReceipt = (delivery: Delivery, employeeName: string) => {
       text += `VENCIMENTO: ${new Date(delivery.payment_due_date + 'T00:00:00').toLocaleDateString('pt-BR')}\n`;
     }
   }
+  const paid = Number((delivery as any).amount_paid) || 0;
+  if (paid > 0 && paid < total) {
+    text += `────────────────────────────\n`;
+    text += `PAGO: R$ ${paid.toFixed(2)}\n`;
+    text += `RESTANTE: R$ ${(total - paid).toFixed(2)}\n`;
+  } else if (paid >= total && total > 0) {
+    text += `────────────────────────────\n`;
+    text += `PAGO: R$ ${paid.toFixed(2)} (QUITADO)\n`;
+  }
   text += `────────────────────────────\n`;
   text += `Obrigado pela preferência!\nDudu Descartáveis\n`;
 
