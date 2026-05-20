@@ -7,6 +7,7 @@ import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import LoadForecast from '@/components/LoadForecast';
 import FinancialCharts from '@/components/FinancialCharts';
+import ProductOutflow from '@/components/ProductOutflow';
 import ClientPicker from '@/components/ClientPicker';
 import AdminEditDelivery from '@/components/AdminEditDelivery';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
