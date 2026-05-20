@@ -7,13 +7,14 @@ import { Profile, Delivery, EMPLOYEE_COLORS } from '@/lib/types';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import LoadForecast from '@/components/LoadForecast';
 import FinancialCharts from '@/components/FinancialCharts';
+import ProductOutflow from '@/components/ProductOutflow';
 import ClientPicker from '@/components/ClientPicker';
 import AdminEditDelivery from '@/components/AdminEditDelivery';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X, PackageMinus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
@@ -26,7 +27,7 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'clients' | 'settings';
+type Tab = 'dashboard' | 'deliveries' | 'employees' | 'performance' | 'stock' | 'financial' | 'forecast' | 'clients' | 'outflow' | 'settings';
 
 interface Product {
   id: string;
@@ -602,6 +603,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     { key: 'financial', label: 'Financeiro', icon: DollarSign },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
+    { key: 'outflow', label: 'Saídas', icon: PackageMinus },
     { key: 'settings', label: 'Config', icon: Settings },
   ];
 
@@ -1107,6 +1109,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         {tab === 'financial' && <FinancialCharts deliveries={deliveries} employees={employees} />}
         {tab === 'performance' && <PerformanceCharts deliveries={deliveries} employees={employees} />}
         {tab === 'forecast' && <LoadForecast deliveries={deliveries} employees={employees} />}
+        {tab === 'outflow' && <ProductOutflow deliveries={deliveries} />}
+
 
         {tab === 'clients' && (
           <>
