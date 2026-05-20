@@ -193,6 +193,11 @@ const ProductOutflow = ({ deliveries }: Props) => {
               <div className="text-xl font-bold">R$ {totalValue.toFixed(2)}</div>
             </div>
           </div>
+
+          <Button onClick={handleExport} className="w-full rounded-full" variant="default">
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Planilha (Excel)
+          </Button>
         </CardContent>
       </Card>
 
