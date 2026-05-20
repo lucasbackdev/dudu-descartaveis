@@ -1109,6 +1109,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         {tab === 'financial' && <FinancialCharts deliveries={deliveries} employees={employees} />}
         {tab === 'performance' && <PerformanceCharts deliveries={deliveries} employees={employees} />}
         {tab === 'forecast' && <LoadForecast deliveries={deliveries} employees={employees} />}
+        {tab === 'outflow' && <ProductOutflow deliveries={deliveries} />}
+
 
         {tab === 'clients' && (
           <>
