@@ -14,7 +14,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
   Package, LogOut, Users, Truck, CheckCircle2, Clock,
   UserCheck, UserX, ChevronDown, ChevronRight, BarChart3, TrendingUp, UserPlus, RefreshCw, Trash2, BoxesIcon, Search,
-  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X
+  DollarSign, Settings, Save, Edit2, Bell, Palette, TruckIcon, MoreHorizontal, Database, Download, FileText, CreditCard, Banknote, Smartphone, CalendarDays, Contact, Phone, X, PackageMinus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
