@@ -603,6 +603,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     { key: 'financial', label: 'Financeiro', icon: DollarSign },
     { key: 'performance', label: 'Desempenho', icon: TrendingUp },
     { key: 'employees', label: 'Equipe', icon: Users },
+    { key: 'outflow', label: 'Saídas', icon: PackageMinus },
     { key: 'settings', label: 'Config', icon: Settings },
   ];
 
