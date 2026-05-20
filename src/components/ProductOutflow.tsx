@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarIcon, PackageMinus, Search } from 'lucide-react';
+import { CalendarIcon, Download, PackageMinus, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import ExcelJS from 'exceljs';
+import { toast } from 'sonner';
 import type { Delivery } from '@/lib/types';
 
 type Preset = 'today' | '2d' | '7d' | '15d' | '30d' | 'custom';
@@ -89,6 +91,33 @@ const ProductOutflow = ({ deliveries }: Props) => {
   const totalQty = aggregated.reduce((s, p) => s + p.quantity, 0);
   const totalValue = aggregated.reduce((s, p) => s + p.total, 0);
 
+  const handleExport = async () => {
+    if (aggregated.length === 0) {
+      toast.error('Nenhuma saída para exportar');
+      return;
+    }
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Saídas');
+    ws.columns = [
+      { header: 'Produto', key: 'name', width: 40 },
+      { header: 'Quantidade', key: 'qty', width: 14 },
+      { header: 'Valor Total', key: 'total', width: 16 },
+    ];
+    aggregated.forEach(p => ws.addRow({ name: p.name, qty: p.quantity, total: Number(p.total.toFixed(2)) }));
+    ws.addRow({});
+    ws.addRow({ name: 'TOTAL', qty: totalQty, total: Number(totalValue.toFixed(2)) }).font = { bold: true };
+    ws.getRow(1).font = { bold: true };
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `saidas_${format(start, 'yyyy-MM-dd')}_a_${format(end, 'yyyy-MM-dd')}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Planilha exportada!');
+  };
+
   return (
     <div className="space-y-4 max-w-2xl mx-auto px-4 pt-4">
       <Card className="rounded-2xl">
@@ -164,6 +193,11 @@ const ProductOutflow = ({ deliveries }: Props) => {
               <div className="text-xl font-bold">R$ {totalValue.toFixed(2)}</div>
             </div>
           </div>
+
+          <Button onClick={handleExport} className="w-full rounded-full" variant="default">
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Planilha (Excel)
+          </Button>
         </CardContent>
       </Card>
 
